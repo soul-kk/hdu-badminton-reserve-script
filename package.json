@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "HDU 综合馆羽毛球自动抢场脚本",
   "type": "module",
-  "main": "index.js",
+  "main": "src/main/index.js",
   "scripts": {
-    "start": "node index.js",
-    "now": "node index.js --now"
+    "start": "node src/main/index.js",
+    "now": "node src/main/index.js --now"
   },
   "dependencies": {
     "dotenv": "^16.0.0"

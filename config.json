@@ -1,5 +1,5 @@
 {
-  "date": "2026-4-3",
+  "date": "2026-4-4",
   "venue_name": "综合馆羽毛球",
   "venue_type": "badminton",
   "openid": "24050511",
@@ -16,11 +16,11 @@
     },
     {
       "time_list": [
-        6,
-        7
+        7,
+        8
       ],
-      "start_time": "14:00",
-      "end_time": "16:00"
+      "start_time": "15:00",
+      "end_time": "17:00"
     }
   ],
   "preferred_sites": [

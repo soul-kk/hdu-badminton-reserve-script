@@ -1,12 +1,14 @@
 // 所有 API 请求封装
 
+import { logger } from './logger.js';
+
 const BASE_URL = 'https://sportmeta.hdu.edu.cn/book/client';
 
 const USER_AGENT =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 26_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/23E246 AliApp(DingTalk/7.8.1) com.laiwang.DingTalk/46766536 Channel/201200 language/zh-Hans-CN UT4Aplus/0.0.6 WK';
 
-function buildHeaders(token) {
-  return {
+function buildHeaders(token, withOrigin = true) {
+  const headers = {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
     'Accept': '*/*',
@@ -14,23 +16,35 @@ function buildHeaders(token) {
     'User-Agent': USER_AGENT,
     'Referer': 'https://sportmeta.hdu.edu.cn/book/dingtalk/',
     'DingTalk-Flag': '1',
-    'Origin': 'https://sportmeta.hdu.edu.cn',
     'Sec-Fetch-Site': 'same-origin',
     'Sec-Fetch-Mode': 'cors',
     'Sec-Fetch-Dest': 'empty',
   };
+  if (withOrigin) {
+    headers['Origin'] = 'https://sportmeta.hdu.edu.cn';
+  }
+  return headers;
 }
 
 async function post(path, token, body = null) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const url = `${BASE_URL}${path}`;
+  const headers = buildHeaders(token, body !== null);
+  const reqLog = `→ POST ${url}\n  headers: ${JSON.stringify(headers)}\n  body: ${body ? JSON.stringify(body) : '(none)'}`;
+  logger.api(reqLog);
+
+  const res = await fetch(url, {
     method: 'POST',
-    headers: buildHeaders(token),
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+
+  const resText = await res.text();
+  logger.api(`← ${res.status} ${res.statusText}\n  body: ${resText}`);
+
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} ${res.statusText} on ${path}`);
   }
-  return res.json();
+  return JSON.parse(resText);
 }
 
 // 获取服务器时间戳（毫秒）
