@@ -56,29 +56,31 @@ async function tryTimeSlot(token, cfg, timeSlot) {
           // 已有其他场地胜出，忽略
           if (won) return;
 
-          const hasConflict = checkRes.conflict_times && checkRes.conflict_times.length > 0;
-          if (hasConflict) {
-            logger.info(`  场地 ${site_id} 冲突: ${checkRes.conflict_times.join(', ')}`);
-          } else {
-            // 该场地可用，尝试抢占
-            if (won) return; // double-check
-            won = true;
-            logger.success(`  场地 ${site_id} 可用！正在确认预约...`);
+          // 场地可用的条件：available_times 非空，且无冲突时段
+          const available = checkRes.available_times ?? [];
+          const conflicts = checkRes.conflict_times ?? [];
+          const isAvailable = available.length > 0 && conflicts.length === 0;
 
-            try {
-              const orderRes = await createOrder(token, orderData);
-              if (orderRes.status === 'success') {
-                finish(orderRes.data);
-              } else {
-                logger.error(`  场地 ${site_id} creat_order 失败: ${orderRes.message}`);
-                won = false; // 释放，允许其他场地尝试（但并发窗口已过，此时可能无效）
-                checkPending();
-              }
-            } catch (e) {
-              logger.error(`  场地 ${site_id} creat_order 异常: ${e.message}`);
-              won = false;
-              checkPending();
-            }
+          if (!isAvailable) {
+            const reason = conflicts.length > 0
+              ? `冲突时段: ${conflicts.join(', ')}`
+              : (checkRes.message || '无可用时段');
+            logger.info(`  场地 ${site_id} 不可用 — ${reason}`);
+            return;
+          }
+
+          // 该场地可用，尝试抢占（double-check won，防止并发时重复下单）
+          if (won) return;
+          won = true;
+          logger.success(`  场地 ${site_id} 可用！正在确认预约...`);
+
+          try {
+            const orderRes = await createOrder(token, orderData);
+            finish(orderRes.data ?? orderRes);
+          } catch (e) {
+            logger.error(`  场地 ${site_id} creat_order 异常: ${e.message}`);
+            won = false; // 释放，允许其他场地尝试（但并发窗口已过，此时可能无效）
+            checkPending();
           }
         })
         .catch((e) => {

@@ -44,7 +44,15 @@ async function post(path, token, body = null) {
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} ${res.statusText} on ${path}`);
   }
-  return JSON.parse(resText);
+
+  const data = JSON.parse(resText);
+
+  // 部分接口以 2xx 状态码返回业务错误（如 201 + {status:"error"}），统一抛出
+  if (data && data.status === 'error') {
+    throw new Error(`业务错误: ${data.message || '未知错误'} on ${path}`);
+  }
+
+  return data;
 }
 
 // 获取服务器时间戳（毫秒）
