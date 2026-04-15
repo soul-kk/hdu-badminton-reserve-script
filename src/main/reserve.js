@@ -120,9 +120,12 @@ export async function reserve(token, cfg) {
     }
 
     if (i < preferred_time_slots.length - 1) {
+      // 两轮之间冷却，避免短时间内累计请求数触发 403 限流
+      const cooldownMs = 1500;
       logger.warn(
-        `时间段 ${slot.start_time}-${slot.end_time} 全部场地冲突，尝试备选时间段...`
+        `时间段 ${slot.start_time}-${slot.end_time} 全部场地冲突，等待 ${cooldownMs}ms 后尝试备选时间段...`
       );
+      await new Promise((r) => setTimeout(r, cooldownMs));
     }
   }
 

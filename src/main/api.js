@@ -26,33 +26,52 @@ function buildHeaders(token, withOrigin = true) {
   return headers;
 }
 
+// 502 是整点瞬时过载，短暂等待后重试成功率较高；其他错误不重试
+const RETRY_STATUS = new Set([502]);
+const RETRY_DELAYS_MS = [300, 600]; // 最多重试 2 次，间隔递增
+
 async function post(path, token, body = null) {
   const url = `${BASE_URL}${path}`;
   const headers = buildHeaders(token, body !== null);
-  const reqLog = `→ POST ${url}\n  headers: ${JSON.stringify(headers)}\n  body: ${body ? JSON.stringify(body) : '(none)'}`;
-  logger.api(reqLog);
+  logger.api(`→ POST ${url}\n  body: ${body ? JSON.stringify(body) : '(none)'}`);
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let lastError;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) {
+      const delay = RETRY_DELAYS_MS[attempt - 1];
+      logger.warn(`  ${path} 第 ${attempt} 次重试（等待 ${delay}ms）...`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
 
-  const resText = await res.text();
-  logger.api(`← ${res.status} ${res.statusText}\n  body: ${resText}`);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
 
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} ${res.statusText} on ${path}`);
+    const resText = await res.text();
+    logger.api(`← ${res.status} ${res.statusText}\n  body: ${resText}`);
+
+    if (RETRY_STATUS.has(res.status)) {
+      lastError = new Error(`HTTP ${res.status} ${res.statusText} on ${path}`);
+      continue; // 触发重试
+    }
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} ${res.statusText} on ${path}`);
+    }
+
+    const data = JSON.parse(resText);
+
+    // 部分接口以 2xx 状态码返回业务错误（如 201 + {status:"error"}），统一抛出
+    if (data && data.status === 'error') {
+      throw new Error(`业务错误: ${data.message || '未知错误'} on ${path}`);
+    }
+
+    return data;
   }
 
-  const data = JSON.parse(resText);
-
-  // 部分接口以 2xx 状态码返回业务错误（如 201 + {status:"error"}），统一抛出
-  if (data && data.status === 'error') {
-    throw new Error(`业务错误: ${data.message || '未知错误'} on ${path}`);
-  }
-
-  return data;
+  throw lastError;
 }
 
 // 获取服务器时间戳（毫秒）

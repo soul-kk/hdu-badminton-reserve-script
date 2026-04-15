@@ -110,7 +110,7 @@ badminton-reserve/
 | 错误               | 原因                           |
 | ------------------ | ------------------------------ |
 | `401 Unauthorized` | Token 过期，重新打开预约页更新 |
-| `502 Bad Gateway`  | 服务器整点过载，属于正常竞争   |
-| `403 Forbidden`    | 触发限流，稍后重试             |
+| `502 Bad Gateway`  | 服务器整点过载，脚本自动重试 2 次 |
+| `403 Forbidden`    | 触发限流，轮间已有冷却；若持续出现可减少场地数 |
 
 详细技术说明见 [.claude/TECH_DOC.md](.claude/TECH_DOC.md)。

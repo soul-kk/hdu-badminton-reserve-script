@@ -11,7 +11,7 @@ import { reserve } from "./reserve.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// 加载 .env（不引入额外依赖，手动解析）
+// 加载 .env
 function loadEnv() {
   try {
     const raw = readFileSync(resolve(__dirname, "../../.env"), "utf-8");
