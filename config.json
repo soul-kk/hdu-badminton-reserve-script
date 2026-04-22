@@ -1,40 +1,17 @@
 {
-  "date": "2026-4-17",
-  "venue_name": "综合馆羽毛球",
-  "venue_type": "badminton",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcGVuaWQiOiIyNDA1MDUxMSIsImV4cCI6MTc3Njg1MTY0MH0.q9ckCwvBXtkzbN-6z5DVN8LDpLTM2YuI01-FDM6KJ68",
+  "date": "2026-4-24",
   "openid": "24050511",
   "nickname": "刘振科",
   "phone": "15934125523",
   "preferred_time_slots": [
     {
-      "time_list": [
-        11,
-        12
-      ],
       "start_time": "19:00",
       "end_time": "21:00"
     },
     {
-      "time_list": [
-        9,
-        10
-      ],
       "start_time": "17:00",
       "end_time": "19:00"
     }
-  ],
-  "preferred_sites": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12
   ]
 }

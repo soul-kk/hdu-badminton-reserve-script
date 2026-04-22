@@ -6,17 +6,17 @@ HDU 综合馆羽毛球场地自动抢场脚本。每天 20:00 开放预约，脚
 
 ## 快速开始
 
-**1. 修改预约日期**
+**1. 更新 Token**
+
+用 Stream（iOS 抓包工具）抓取钉钉预约页面的请求，复制 `Authorization: Bearer <token>` 中的 token，粘贴到 `config.json` 的 `token` 字段。
+
+**2. 修改预约日期**
 
 编辑 `config.json`，将 `date` 改为目标日期：
 
 ```json
-{ "date": "2026-4-14" }
+{ "date": "2026-4-23" }
 ```
-
-**2. 确认 Token 有效**
-
-手机钉钉配置 WiFi 代理（Mac IP:18888），打开羽毛球预约页面，Token 会自动写入 `.env`。
 
 **3. 运行脚本**
 
@@ -36,48 +36,27 @@ npm run now      # 立即执行（用于测试）
 
 ---
 
-## Token 代理控制
-
-mitmproxy 以 launchd 服务形式常驻，开机自启、崩溃自动重启。
-
-| 命令                    | 作用                       |
-| ----------------------- | -------------------------- |
-| `npm run proxy:status`  | 查看进程状态和端口监听情况 |
-| `npm run proxy:start`   | 手动启动                   |
-| `npm run proxy:stop`    | 临时停止（开机仍会自启）   |
-| `npm run proxy:restart` | 重启（修改脚本后使用）     |
-| `npm run proxy:disable` | 彻底禁用，开机不再自启     |
-| `npm run proxy:enable`  | 重新启用开机自启           |
-| `npm run proxy:log`     | 实时查看 Token 更新日志    |
-
----
-
 ## 配置说明
 
 ### `config.json`
 
 ```json
 {
-  "date": "2026-4-14",
+  "token": "eyJhbGci...",
+  "date": "2026-4-22",
+  "openid": "24050511",
+  "nickname": "刘振科",
+  "phone": "15934125523",
   "preferred_time_slots": [
-    { "time_list": [11, 12], "start_time": "19:00", "end_time": "21:00" },
-    { "time_list": [8, 9], "start_time": "16:00", "end_time": "18:00" }
-  ],
-  "preferred_sites": [5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4]
+    { "start_time": "19:00", "end_time": "21:00" },
+    { "start_time": "16:00", "end_time": "18:00" }
+  ]
 }
 ```
 
+- `token`：每次抢场前从 Stream 抓包更新
 - `date`：每次抢场前修改
-- `preferred_time_slots`：时间段优先级，从上到下依次降级
-- `preferred_sites`：所有场地并发抢，顺序不影响优先级
-
-### `.env`
-
-```
-token = eyJhbGci...
-```
-
-由 mitmproxy 自动写入，通常不需要手动修改。
+- `preferred_time_slots`：时间段优先级，从上到下依次降级，只需填 `start_time` / `end_time`
 
 ---
 
@@ -85,8 +64,7 @@ token = eyJhbGci...
 
 ```
 badminton-reserve/
-├── .env                         # JWT Token（自动维护）
-├── config.json                  # 预约配置
+├── config.json                  # 预约配置（token + date，每次修改）
 ├── package.json
 ├── src/main/
 │   ├── index.js                 # 入口
@@ -95,7 +73,7 @@ badminton-reserve/
 │   ├── reserve.js               # 抢场核心逻辑
 │   └── logger.js                # 日志
 ├── scripts/
-│   └── token_extractor.py       # mitmproxy addon，自动捕获 Token
+│   └── token_extractor.py       # mitmproxy addon（备用）
 └── .logs/                       # 每次运行的完整请求日志
 ```
 
@@ -109,7 +87,7 @@ badminton-reserve/
 
 | 错误               | 原因                           |
 | ------------------ | ------------------------------ |
-| `401 Unauthorized` | Token 过期，重新打开预约页更新 |
+| `401 Unauthorized` | Token 过期，用 Stream 重新抓取更新 |
 | `502 Bad Gateway`  | 服务器整点过载，脚本自动重试 2 次 |
 | `403 Forbidden`    | 触发限流，轮间已有冷却；若持续出现可减少场地数 |
 

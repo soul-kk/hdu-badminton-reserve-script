@@ -7,13 +7,14 @@
   "scripts": {
     "start": "node src/main/index.js",
     "now": "node src/main/index.js --now",
-    "proxy:status": "launchctl list | grep badminton && lsof -i :18888 -sTCP:LISTEN | tail -1",
+    "proxy:check": "launchctl list | grep badminton && lsof -i :8888 -sTCP:LISTEN | tail -1 && tail -f .logs/proxy.log",
+    "proxy:status": "launchctl list | grep badminton && lsof -i :8888 -sTCP:LISTEN | tail -1",
     "proxy:stop": "launchctl stop com.badminton.token-proxy",
     "proxy:start": "launchctl start com.badminton.token-proxy",
     "proxy:restart": "launchctl stop com.badminton.token-proxy && launchctl start com.badminton.token-proxy",
     "proxy:disable": "launchctl unload ~/Library/LaunchAgents/com.badminton.token-proxy.plist",
     "proxy:enable": "launchctl load ~/Library/LaunchAgents/com.badminton.token-proxy.plist",
-    "proxy:log": "tail -f .logs/token-proxy.log"
+    "proxy:log": "tail -f .logs/proxy.log"
   },
   "dependencies": {
     "dotenv": "^16.0.0"
