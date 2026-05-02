@@ -66,7 +66,7 @@ npm run now      # 立即执行（用于测试）
 badminton-reserve/
 ├── config.json                  # 预约配置（token + date，每次修改）
 ├── package.json
-├── src/main/
+├── script/main/
 │   ├── index.js                 # 入口
 │   ├── api.js                   # HTTP 请求封装
 │   ├── timer.js                 # 时间同步与倒计时
@@ -85,10 +85,10 @@ badminton-reserve/
 
 查看 `.logs/` 中最新的日志文件，常见原因：
 
-| 错误               | 原因                           |
-| ------------------ | ------------------------------ |
-| `401 Unauthorized` | Token 过期，用 Stream 重新抓取更新 |
-| `502 Bad Gateway`  | 服务器整点过载，脚本自动重试 2 次 |
+| 错误               | 原因                                           |
+| ------------------ | ---------------------------------------------- |
+| `401 Unauthorized` | Token 过期，用 Stream 重新抓取更新             |
+| `502 Bad Gateway`  | 服务器整点过载，脚本自动重试 2 次              |
 | `403 Forbidden`    | 触发限流，轮间已有冷却；若持续出现可减少场地数 |
 
 详细技术说明见 [.claude/TECH_DOC.md](.claude/TECH_DOC.md)。

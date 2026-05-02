@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "HDU 综合馆羽毛球自动抢场脚本",
   "type": "module",
-  "main": "src/main/index.js",
+  "main": "script/main/index.js",
   "scripts": {
-    "start": "node src/main/index.js",
-    "now": "node src/main/index.js --now",
+    "start": "node script/main/index.js",
+    "now": "node script/main/index.js --now",
     "proxy:check": "launchctl list | grep badminton && lsof -i :8888 -sTCP:LISTEN | tail -1 && tail -f .logs/proxy.log",
     "proxy:status": "launchctl list | grep badminton && lsof -i :8888 -sTCP:LISTEN | tail -1",
     "proxy:stop": "launchctl stop com.badminton.token-proxy",

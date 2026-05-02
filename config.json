@@ -1,17 +1,17 @@
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcGVuaWQiOiIyNDA1MDUxMSIsImV4cCI6MTc3Njg1MTY0MH0.q9ckCwvBXtkzbN-6z5DVN8LDpLTM2YuI01-FDM6KJ68",
-  "date": "2026-4-24",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcGVuaWQiOiIyNDA1MDUxMSIsImV4cCI6MTc3NzMwNzgyOH0.TDD77c0zciunR56-9nTXFp4_YZBVPoRDipDnTEzQsRQ",
+  "date": "2026-4-30",
   "openid": "24050511",
   "nickname": "刘振科",
   "phone": "15934125523",
   "preferred_time_slots": [
     {
-      "start_time": "19:00",
-      "end_time": "21:00"
+      "start_time": "15:00",
+      "end_time": "17:00"
     },
     {
-      "start_time": "17:00",
-      "end_time": "19:00"
+      "start_time": "15:00",
+      "end_time": "17:00"
     }
   ]
 }
