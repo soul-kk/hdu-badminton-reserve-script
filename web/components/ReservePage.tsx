@@ -229,191 +229,196 @@ export default function ReservePage() {
 
   return (
     <>
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-5xl mx-auto">
-        {/* header */}
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">🏸 羽毛球场，我抢抢抢抢抢！🤓</h1>
+      <div className="min-h-screen p-4 md:p-8">
+        <div className="max-w-5xl mx-auto">
+          {/* header */}
+          <h1 className="text-2xl font-bold text-gray-800 mb-6">🏸 羽毛球场，我抢抢抢抢抢！🤓</h1>
 
-        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex flex-col lg:flex-row gap-6">
 
-          {/* ── LEFT: form ─────────────────────────────────────────────────── */}
-          <div className="lg:w-96 shrink-0">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-base font-semibold text-gray-700 mb-4">预约信息</h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
+            {/* ── LEFT: form ─────────────────────────────────────────────────── */}
+            <div className="lg:w-96 shrink-0">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h2 className="text-base font-semibold text-gray-700 mb-4">预约信息</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Token</label>
-                  <textarea
-                    value={token}
-                    onChange={e => setToken(e.target.value)}
-                    placeholder="粘贴钉钉 JWT token"
-                    rows={5}
-                    required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">预约日期</label>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={e => setDate(e.target.value)}
-                    required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">学号</label>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Token</label>
+                    <textarea
+                      value={token}
+                      onChange={e => setToken(e.target.value)}
+                      placeholder="粘贴钉钉 JWT token"
+                      rows={5}
+                      required
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">预约日期</label>
                     <input
-                      value={openid}
-                      onChange={e => setOpenid(e.target.value)}
-                      placeholder="24010133"
+                      type="date"
+                      value={date}
+                      onChange={e => setDate(e.target.value)}
                       required
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">姓名</label>
-                    <input
-                      value={nickname}
-                      onChange={e => setNickname(e.target.value)}
-                      placeholder="石宇奇"
-                      required
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">手机号</label>
-                  <input
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    placeholder="138xxxxxxxx"
-                    required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-gray-600">时间段优先级</label>
-                    <button
-                      type="button"
-                      onClick={addSlot}
-                      disabled={slots.length >= 4}
-                      className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 transition-colors"
-                    >
-                      + 添加备选
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {slots.map((slot, i) => (
-                      <SlotRow
-                        key={i}
-                        slot={slot}
-                        index={i}
-                        onChange={updateSlot}
-                        onRemove={removeSlot}
-                        canRemove={slots.length > 1}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">学号</label>
+                      <input
+                        value={openid}
+                        onChange={e => setOpenid(e.target.value)}
+                        placeholder="24010133"
+                        required
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
-                    ))}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">姓名</label>
+                      <input
+                        value={nickname}
+                        onChange={e => setNickname(e.target.value)}
+                        placeholder="石宇奇"
+                        required
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">按顺序尝试，第一个成功即停止</p>
-                </div>
 
-                {error && (
-                  <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
-                )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">手机号</label>
+                    <input
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="138xxxxxxxx"
+                      required
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-                <div className="flex gap-3 pt-1">
-                  <button
-                    type="submit"
-                    disabled={submitting || !!isActive}
-                    className="flex-1 rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {submitting ? '提交中...' : isActive ? '运行中...' : '开始抢场 😈'}
-                  </button>
-                  {isActive && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-gray-600">时间段优先级</label>
+                      <button
+                        type="button"
+                        onClick={addSlot}
+                        disabled={slots.length >= 4}
+                        className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 transition-colors"
+                      >
+                        + 添加备选
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {slots.map((slot, i) => (
+                        <SlotRow
+                          key={i}
+                          slot={slot}
+                          index={i}
+                          onChange={updateSlot}
+                          onRemove={removeSlot}
+                          canRemove={slots.length > 1}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">按顺序尝试，第一个成功即停止</p>
+                  </div>
+
+                  {error && (
+                    <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+                  )}
+
+                  <div className="flex gap-3 pt-1">
                     <button
-                      type="button"
-                      onClick={handleCancel}
-                      className="rounded-xl border border-red-300 text-red-600 font-medium px-4 py-2.5 text-sm hover:bg-red-50 transition-colors"
+                      type="submit"
+                      disabled={submitting || !!isActive}
+                      className="flex-1 rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      取消
+                      {submitting ? '提交中...' : isActive ? '运行中...' : '开始抢场 😈'}
                     </button>
+                    {isActive && (
+                      <button
+                        type="button"
+                        onClick={handleCancel}
+                        className="rounded-xl border border-red-300 text-red-600 font-medium px-4 py-2.5 text-sm hover:bg-red-50 transition-colors"
+                      >
+                        取消
+                      </button>
+                    )}
+                  </div>
+
+                </form>
+              </div>
+            </div>
+
+            {/* ── RIGHT: logs ────────────────────────────────────────────────── */}
+            <div className="flex-1 min-w-0">
+              <div className="bg-gray-900 rounded-2xl shadow-sm border border-gray-800 p-5 h-96 lg:h-[calc(100vh-10rem)] flex flex-col">
+                {/* log header */}
+                <div className="flex items-center justify-between mb-3 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-semibold text-gray-400">运行日志📝</h2>
+                    {taskId && (
+                      <span className="text-xs text-gray-600 font-mono">{taskId.slice(0, 8)}</span>
+                    )}
+                  </div>
+                  {task && (
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[task.status].cls}`}>
+                      {STATUS_BADGE[task.status].label}
+                    </span>
                   )}
                 </div>
 
-              </form>
-            </div>
-          </div>
-
-          {/* ── RIGHT: logs ────────────────────────────────────────────────── */}
-          <div className="flex-1 min-w-0">
-            <div className="bg-gray-900 rounded-2xl shadow-sm border border-gray-800 p-5 h-96 lg:h-[calc(100vh-10rem)] flex flex-col">
-              {/* log header */}
-              <div className="flex items-center justify-between mb-3 shrink-0">
-                <h2 className="text-sm font-semibold text-gray-400">运行日志📝</h2>
-                {task && (
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[task.status].cls}`}>
-                    {STATUS_BADGE[task.status].label}
-                  </span>
-                )}
-              </div>
-
-              {/* log body */}
-              <div className="log-scroll flex-1 overflow-y-auto min-h-0 font-mono text-xs leading-5 space-y-0.5">
-                {!task && (
-                  <p className="text-gray-600 italic">填写表单并提交后，日志将在此显示...</p>
-                )}
-                {task?.logs.map((log, i) => (
-                  <div key={i} className={`${LOG_COLORS[log.level]} break-all`}>
-                    <span className="text-gray-600 select-none mr-2">
-                      {new Date(log.ts).toLocaleTimeString('zh-CN', { hour12: false })}
-                    </span>
-                    {log.message}
-                  </div>
-                ))}
-                <div ref={logEndRef} />
-              </div>
-
-              {/* success result card */}
-              {task?.status === 'success' && task.result && (
-                <div className="mt-4 shrink-0 rounded-xl bg-green-900/40 border border-green-700 p-4">
-                  <p className="text-green-400 font-semibold text-sm mb-1">预约成功！（记得去钉钉里邀请好友好友👯）</p>
-                  <p className="text-green-300 text-xs">订单号：{task.result.order_num}</p>
-                  <p className="text-green-300 text-xs">
-                    {task.result.venue_name} {task.result.site_id}号场 ·{' '}
-                    {task.result.order_date} {task.result.start_time}–{task.result.end_time}
-                  </p>
+                {/* log body */}
+                <div className="log-scroll flex-1 overflow-y-auto min-h-0 font-mono text-xs leading-5 space-y-0.5">
+                  {!task && (
+                    <p className="text-gray-600 italic">填写表单并提交后，日志将在此显示...</p>
+                  )}
+                  {task?.logs.map((log, i) => (
+                    <div key={i} className={`${LOG_COLORS[log.level]} break-all`}>
+                      <span className="text-gray-600 select-none mr-2">
+                        {new Date(log.ts).toLocaleTimeString('zh-CN', { hour12: false })}
+                      </span>
+                      {log.message}
+                    </div>
+                  ))}
+                  <div ref={logEndRef} />
                 </div>
-              )}
+
+                {/* success result card */}
+                {task?.status === 'success' && task.result && (
+                  <div className="mt-4 shrink-0 rounded-xl bg-green-900/40 border border-green-700 p-4">
+                    <p className="text-green-400 font-semibold text-sm mb-1">预约成功！（记得去钉钉里邀请好友好友👯）</p>
+                    <p className="text-green-300 text-xs">订单号：{task.result.order_num}</p>
+                    <p className="text-green-300 text-xs">
+                      {task.result.venue_name} {task.result.site_id}号场 ·{' '}
+                      {task.result.order_date} {task.result.start_time}–{task.result.end_time}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
+
           </div>
-
         </div>
       </div>
-    </div>
 
-    {/* not-found dialog */}
-    {notFoundDialog && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
-          <p className="text-gray-800 font-semibold mb-4">任务ID不存在！</p>
-          <button
-            onClick={() => { setNotFoundDialog(false); router.replace('/'); }}
-            className="w-full rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 transition-colors"
-          >
-            确认
-          </button>
+      {/* not-found dialog */}
+      {notFoundDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <p className="text-gray-800 font-semibold mb-4">任务ID不存在！</p>
+            <button
+              onClick={() => { setNotFoundDialog(false); router.replace('/'); }}
+              className="w-full rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 transition-colors"
+            >
+              确认
+            </button>
+          </div>
         </div>
-      </div>
-    )}
+      )}
     </>
   );
 }
