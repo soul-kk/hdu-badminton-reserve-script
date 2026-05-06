@@ -99,7 +99,10 @@ function SlotRow({
 
 export default function ReservePage() {
   // form state
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('reserve_token') ?? '';
+  });
   const [date, setDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 2);
@@ -257,10 +260,10 @@ export default function ReservePage() {
                   >
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">Token</label>
+                      <label className="block text-sm font-medium text-gray-600 mb-1"><b>Token【❗️每次记得更新】</b></label>
                       <textarea
                         value={token}
-                        onChange={e => setToken(e.target.value)}
+                        onChange={e => { setToken(e.target.value); localStorage.setItem('reserve_token', e.target.value); }}
                         placeholder="粘贴钉钉 JWT token"
                         rows={5}
                         required
