@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,10 @@ export default function ReservePage() {
   const [task, setTask] = useState<TaskView | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [notFoundDialog, setNotFoundDialog] = useState(false);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const logEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -142,6 +147,27 @@ export default function ReservePage() {
   }, [stopPolling]);
 
   useEffect(() => () => stopPolling(), [stopPolling]);
+
+  // load task from URL param on mount
+  useEffect(() => {
+    const id = searchParams.get('taskId');
+    if (!id) return;
+    (async () => {
+      const res = await fetch(`/api/task/${id}`);
+      if (!res.ok) { setNotFoundDialog(true); return; }
+      const data = await res.json();
+      setToken(data.token);
+      setDate(data.date.replace(/^(\d+)-(\d+)-(\d+)$/, (_: string, y: string, m: string, d: string) =>
+        `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`));
+      setOpenid(data.openid);
+      setNickname(data.nickname);
+      setPhone(data.phone);
+      setSlots(data.preferred_time_slots);
+      setTaskId(id);
+      setTask({ status: data.status, logs: data.logs, result: data.result });
+      if (['pending', 'running'].includes(data.status)) startPolling(id);
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // auto-scroll logs
   useEffect(() => {
@@ -178,6 +204,7 @@ export default function ReservePage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? '提交失败'); return; }
+      router.replace(`/?taskId=${data.taskId}`);
       setTaskId(data.taskId);
       startPolling(data.taskId);
     } catch {
@@ -201,6 +228,7 @@ export default function ReservePage() {
   const isActive = task && ['pending', 'running'].includes(task.status);
 
   return (
+    <>
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         {/* header */}
@@ -371,5 +399,21 @@ export default function ReservePage() {
         </div>
       </div>
     </div>
+
+    {/* not-found dialog */}
+    {notFoundDialog && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+          <p className="text-gray-800 font-semibold mb-4">任务ID不存在！</p>
+          <button
+            onClick={() => { setNotFoundDialog(false); router.replace('/'); }}
+            className="w-full rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 transition-colors"
+          >
+            确认
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
