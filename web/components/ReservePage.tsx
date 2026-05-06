@@ -99,7 +99,13 @@ function SlotRow({
 export default function ReservePage() {
   // form state
   const [token, setToken] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  });
   const [openid, setOpenid] = useState('');
   const [nickname, setNickname] = useState('');
   const [phone, setPhone] = useState('');
@@ -168,7 +174,7 @@ export default function ReservePage() {
       const res = await fetch('/api/reserve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, date, openid, nickname, phone, preferred_time_slots: slots }),
+        body: JSON.stringify({ token, date: date.replace(/^(\d+)-0?(\d+)-0?(\d+)$/, '$1-$2-$3'), openid, nickname, phone, preferred_time_slots: slots }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? '提交失败'); return; }
@@ -198,7 +204,7 @@ export default function ReservePage() {
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         {/* header */}
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">🏸 羽毛球抢场</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">🏸 羽毛球场，我抢抢抢抢抢！🤓</h1>
 
         <div className="flex flex-col lg:flex-row gap-6">
 
@@ -214,7 +220,7 @@ export default function ReservePage() {
                     value={token}
                     onChange={e => setToken(e.target.value)}
                     placeholder="粘贴钉钉 JWT token"
-                    rows={3}
+                    rows={5}
                     required
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   />
@@ -233,21 +239,21 @@ export default function ReservePage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">OpenID</label>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">学号</label>
                     <input
                       value={openid}
                       onChange={e => setOpenid(e.target.value)}
-                      placeholder="24050511"
+                      placeholder="24010133"
                       required
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">昵称</label>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">姓名</label>
                     <input
                       value={nickname}
                       onChange={e => setNickname(e.target.value)}
-                      placeholder="张三"
+                      placeholder="石宇奇"
                       required
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -302,7 +308,7 @@ export default function ReservePage() {
                     disabled={submitting || !!isActive}
                     className="flex-1 rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {submitting ? '提交中...' : isActive ? '运行中...' : '开始抢场'}
+                    {submitting ? '提交中...' : isActive ? '运行中...' : '开始抢场 😈'}
                   </button>
                   {isActive && (
                     <button
@@ -321,10 +327,10 @@ export default function ReservePage() {
 
           {/* ── RIGHT: logs ────────────────────────────────────────────────── */}
           <div className="flex-1 min-w-0">
-            <div className="bg-gray-900 rounded-2xl shadow-sm border border-gray-800 p-5 h-full min-h-64 flex flex-col">
+            <div className="bg-gray-900 rounded-2xl shadow-sm border border-gray-800 p-5 h-96 lg:h-[calc(100vh-10rem)] flex flex-col">
               {/* log header */}
               <div className="flex items-center justify-between mb-3 shrink-0">
-                <h2 className="text-sm font-semibold text-gray-400">运行日志</h2>
+                <h2 className="text-sm font-semibold text-gray-400">运行日志📝</h2>
                 {task && (
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[task.status].cls}`}>
                     {STATUS_BADGE[task.status].label}
@@ -333,7 +339,7 @@ export default function ReservePage() {
               </div>
 
               {/* log body */}
-              <div className="flex-1 overflow-y-auto font-mono text-xs leading-5 space-y-0.5">
+              <div className="log-scroll flex-1 overflow-y-auto min-h-0 font-mono text-xs leading-5 space-y-0.5">
                 {!task && (
                   <p className="text-gray-600 italic">填写表单并提交后，日志将在此显示...</p>
                 )}
@@ -351,7 +357,7 @@ export default function ReservePage() {
               {/* success result card */}
               {task?.status === 'success' && task.result && (
                 <div className="mt-4 shrink-0 rounded-xl bg-green-900/40 border border-green-700 p-4">
-                  <p className="text-green-400 font-semibold text-sm mb-1">预约成功</p>
+                  <p className="text-green-400 font-semibold text-sm mb-1">预约成功！（记得去钉钉里邀请好友好友👯）</p>
                   <p className="text-green-300 text-xs">订单号：{task.result.order_num}</p>
                   <p className="text-green-300 text-xs">
                     {task.result.venue_name} {task.result.site_id}号场 ·{' '}

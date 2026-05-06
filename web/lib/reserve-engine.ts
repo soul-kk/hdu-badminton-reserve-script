@@ -83,8 +83,13 @@ async function post(
 
 function sleep(ms: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener('abort', () => { clearTimeout(t); reject(new Error('任务已取消')); });
+    if (signal?.aborted) { reject(new Error('任务已取消')); return; }
+    const onAbort = () => { clearTimeout(t); reject(new Error('任务已取消')); };
+    const t = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
   });
 }
 
