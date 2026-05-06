@@ -107,9 +107,18 @@ export default function ReservePage() {
     const dd = String(d.getDate()).padStart(2, '0');
     return `${d.getFullYear()}-${mm}-${dd}`;
   });
-  const [openid, setOpenid] = useState('');
-  const [nickname, setNickname] = useState('');
-  const [phone, setPhone] = useState('');
+  const [openid, setOpenid] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('reserve_openid') ?? '';
+  });
+  const [nickname, setNickname] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('reserve_nickname') ?? '';
+  });
+  const [phone, setPhone] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('reserve_phone') ?? '';
+  });
   const [slots, setSlots] = useState<TimeSlot[]>([
     { start_time: '16:00', end_time: '18:00' },
   ]);
@@ -226,6 +235,7 @@ export default function ReservePage() {
   // ── render ─────────────────────────────────────────────────────────────────
 
   const isActive = task && ['pending', 'running'].includes(task.status);
+  const isDone = task && ['success', 'failed', 'cancelled'].includes(task.status);
 
   return (
     <>
@@ -241,108 +251,124 @@ export default function ReservePage() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-700 mb-4">预约信息</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  <fieldset
+                    disabled={!!isActive || !!isDone}
+                    className={`space-y-4 border-0 p-0 m-0 transition-opacity disabled:cursor-not-allowed [&:disabled_*]:cursor-not-allowed ${isActive || isDone ? 'opacity-50' : ''}`}
+                  >
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Token</label>
-                    <textarea
-                      value={token}
-                      onChange={e => setToken(e.target.value)}
-                      placeholder="粘贴钉钉 JWT token"
-                      rows={5}
-                      required
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">预约日期</label>
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={e => setDate(e.target.value)}
-                      required
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">学号</label>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Token</label>
+                      <textarea
+                        value={token}
+                        onChange={e => setToken(e.target.value)}
+                        placeholder="粘贴钉钉 JWT token"
+                        rows={5}
+                        required
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">预约日期</label>
                       <input
-                        value={openid}
-                        onChange={e => setOpenid(e.target.value)}
-                        placeholder="24010133"
+                        type="date"
+                        value={date}
+                        onChange={e => setDate(e.target.value)}
                         required
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">姓名</label>
-                      <input
-                        value={nickname}
-                        onChange={e => setNickname(e.target.value)}
-                        placeholder="石宇奇"
-                        required
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">手机号</label>
-                    <input
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      placeholder="138xxxxxxxx"
-                      required
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium text-gray-600">时间段优先级</label>
-                      <button
-                        type="button"
-                        onClick={addSlot}
-                        disabled={slots.length >= 4}
-                        className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 transition-colors"
-                      >
-                        + 添加备选
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      {slots.map((slot, i) => (
-                        <SlotRow
-                          key={i}
-                          slot={slot}
-                          index={i}
-                          onChange={updateSlot}
-                          onRemove={removeSlot}
-                          canRemove={slots.length > 1}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">学号</label>
+                        <input
+                          value={openid}
+                          onChange={e => { setOpenid(e.target.value); localStorage.setItem('reserve_openid', e.target.value); }}
+                          placeholder="24010133"
+                          required
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                      ))}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">姓名</label>
+                        <input
+                          value={nickname}
+                          onChange={e => { setNickname(e.target.value); localStorage.setItem('reserve_nickname', e.target.value); }}
+                          placeholder="石宇奇"
+                          required
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">按顺序尝试，第一个成功即停止</p>
-                  </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">手机号</label>
+                      <input
+                        value={phone}
+                        onChange={e => { setPhone(e.target.value); localStorage.setItem('reserve_phone', e.target.value); }}
+                        placeholder="138xxxxxxxx"
+                        required
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium text-gray-600">时间段优先级</label>
+                        <button
+                          type="button"
+                          onClick={addSlot}
+                          disabled={slots.length >= 4}
+                          className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 transition-colors"
+                        >
+                          + 添加备选
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {slots.map((slot, i) => (
+                          <SlotRow
+                            key={i}
+                            slot={slot}
+                            index={i}
+                            onChange={updateSlot}
+                            onRemove={removeSlot}
+                            canRemove={slots.length > 1}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">按顺序尝试，第一个成功即停止</p>
+                    </div>
+
+                  </fieldset>
 
                   {error && (
                     <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
                   )}
 
                   <div className="flex gap-3 pt-1">
-                    <button
-                      type="submit"
-                      disabled={submitting || !!isActive}
-                      className="flex-1 rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {submitting ? '提交中...' : isActive ? '运行中...' : '开始抢场 😈'}
-                    </button>
+                    {isDone ? (
+                      <button
+                        type="button"
+                        onClick={() => { window.location.href = '/'; }}
+                        className="flex-1 rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 transition-colors cursor-pointer"
+                      >
+                        新的抢场任务
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={submitting || !!isActive}
+                        className="flex-1 rounded-xl bg-blue-600 cursor-pointer text-white font-medium py-2.5 text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {submitting ? '提交中...' : isActive ? '运行中...' : '开始抢场 😈'}
+                      </button>
+                    )}
                     {isActive && (
                       <button
                         type="button"
                         onClick={handleCancel}
-                        className="rounded-xl border border-red-300 text-red-600 font-medium px-4 py-2.5 text-sm hover:bg-red-50 transition-colors"
+                        className="rounded-xl border border-red-300 text-red-600 font-medium px-4 py-2.5 text-sm hover:bg-red-50 transition-colors cursor-pointer"
                       >
                         取消
                       </button>
@@ -403,22 +429,24 @@ export default function ReservePage() {
 
           </div>
         </div>
-      </div>
+      </div >
 
       {/* not-found dialog */}
-      {notFoundDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
-            <p className="text-gray-800 font-semibold mb-4">任务ID不存在！</p>
-            <button
-              onClick={() => { setNotFoundDialog(false); router.replace('/'); }}
-              className="w-full rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 transition-colors"
-            >
-              确认
-            </button>
+      {
+        notFoundDialog && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+              <p className="text-gray-800 font-semibold mb-4">任务ID不存在！</p>
+              <button
+                onClick={() => { setNotFoundDialog(false); router.replace('/'); }}
+                className="w-full rounded-xl bg-blue-600 text-white font-medium py-2.5 text-sm hover:bg-blue-700 transition-colors"
+              >
+                确认
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </>
   );
 }
