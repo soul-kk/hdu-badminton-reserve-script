@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "羽毛球抢场",
-  description: "HDU 综合馆羽毛球自动预约",
+  title: "kk抢场",
+  description: "HDU 羽毛球馆自动预约",
+  icons: {
+    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏸</text></svg>",
+  },
 };
 
 export default function RootLayout({
