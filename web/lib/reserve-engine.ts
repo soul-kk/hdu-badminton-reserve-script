@@ -30,6 +30,11 @@ const TIME_INDEX: Record<string, number> = {
   "21:00": 13,
 };
 
+// reverse map: index → time string (e.g. 11 → "19:00")
+const INDEX_TO_TIME: Record<number, string> = Object.fromEntries(
+  Object.entries(TIME_INDEX).map(([t, i]) => [i, t]),
+);
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function buildHeaders(token: string, withOrigin = true) {
@@ -247,25 +252,46 @@ async function tryTimeSlot(
       post("/creat_book_info", token, { orderData }, signal, taskId)
         .then(async checkRes => {
           if (won || signal.aborted) return;
-          const available = (checkRes.available_times ?? []) as unknown[];
-          const conflicts = (checkRes.conflict_times ?? []) as unknown[];
-          const ok = available.length > 0 && conflicts.length === 0;
-          if (!ok) {
-            const reason =
-              conflicts.length > 0
-                ? `冲突时段: ${(conflicts as string[]).join(", ")}`
-                : (checkRes.message ?? "无可用时段");
+          const available = (checkRes.available_times ?? []) as number[];
+          const conflicts = (checkRes.conflict_times ?? []) as number[];
+
+          // Case C: nothing available
+          if (available.length === 0) {
+            const reason = conflicts.length > 0
+              ? `冲突时段: ${conflicts.join(", ")}`
+              : (checkRes.message ?? "无可用时段");
             addLog(taskId, "info", `  场地 ${site_id} 不可用 — ${reason}`);
             return;
           }
+
+          // Case A: fully available (no conflicts)
+          // Case B: partially available (server has pre-reserved available slots for us)
+          const isPartial = conflicts.length > 0;
+          let finalOrderData = orderData;
+
+          if (isPartial) {
+            // Reconstruct orderData with only the available sub-slots
+            const sorted = [...available].sort((a, b) => a - b);
+            const partialStart = INDEX_TO_TIME[sorted[0]];
+            const partialEnd = INDEX_TO_TIME[sorted[sorted.length - 1] + 1];
+            if (!partialStart || !partialEnd) {
+              addLog(taskId, "warn", `  场地 ${site_id} 部分可用但时段索引无法解析，跳过`);
+              return;
+            }
+            finalOrderData = { ...orderData, time_list: sorted, start_time: partialStart, end_time: partialEnd };
+            addLog(taskId, "info",
+              `  场地 ${site_id} 部分可用（${partialStart}-${partialEnd}），冲突时段: ${conflicts.join(", ")}，正在确认预约...`
+            );
+          }
+
           if (won) return;
           won = true;
-          addLog(taskId, "success", `  场地 ${site_id} 可用！正在确认预约...`);
+          if (!isPartial) addLog(taskId, "success", `  场地 ${site_id} 可用！正在确认预约...`);
           try {
             const orderRes = await post(
               "/creat_order",
               token,
-              { orderData },
+              { orderData: finalOrderData },
               signal,
               taskId,
             );
