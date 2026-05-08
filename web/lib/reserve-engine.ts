@@ -366,5 +366,6 @@ export async function executeReserve(taskId: string) {
   }
 
   addLog(taskId, "error", "所有时间段均已被占满，抢场失败。");
+  addLog(taskId, "error", "如有401错误，下次预约请切记更新token！");
   updateStatus(taskId, "failed");
 }
