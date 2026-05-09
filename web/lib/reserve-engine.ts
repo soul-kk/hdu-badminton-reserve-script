@@ -10,8 +10,9 @@ const USER_AGENT =
 const VENUE_NAME = "综合馆羽毛球";
 const VENUE_TYPE = "badminton";
 const PREFERRED_SITES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-const RETRY_STATUS = new Set([502]);
-const RETRY_DELAYS_MS = [300, 600];
+const RETRY_STATUS = new Set([502, 403]);
+const RETRY_DELAYS_MS = [500, 1000];
+const SITE_STAGGER_MS = 50; // 每个场地请求错开 50ms，避免同时爆发触发限流
 
 const TIME_INDEX: Record<string, number> = {
   "08:00": 0,
@@ -247,9 +248,12 @@ async function tryTimeSlot(
       if (pending <= 0 && !resolved) finish(null);
     }
 
-    for (const site_id of PREFERRED_SITES) {
+    PREFERRED_SITES.forEach((site_id, idx) => {
       const orderData = buildOrderData(site_id);
-      post("/creat_book_info", token, { orderData }, signal, taskId)
+      const launch = idx === 0
+        ? Promise.resolve()
+        : sleep(idx * SITE_STAGGER_MS, signal).catch(() => { /* aborted */ });
+      launch.then(() => post("/creat_book_info", token, { orderData }, signal, taskId))
         .then(async checkRes => {
           if (won || signal.aborted) return;
           const available = (checkRes.available_times ?? []) as number[];
@@ -257,9 +261,10 @@ async function tryTimeSlot(
 
           // Case C: nothing available
           if (available.length === 0) {
-            const reason = conflicts.length > 0
-              ? `冲突时段: ${conflicts.join(", ")}`
-              : (checkRes.message ?? "无可用时段");
+            const reason =
+              conflicts.length > 0
+                ? `冲突时段: ${conflicts.join(", ")}`
+                : (checkRes.message ?? "无可用时段");
             addLog(taskId, "info", `  场地 ${site_id} 不可用 — ${reason}`);
             return;
           }
@@ -275,18 +280,34 @@ async function tryTimeSlot(
             const partialStart = INDEX_TO_TIME[sorted[0]];
             const partialEnd = INDEX_TO_TIME[sorted[sorted.length - 1] + 1];
             if (!partialStart || !partialEnd) {
-              addLog(taskId, "warn", `  场地 ${site_id} 部分可用但时段索引无法解析，跳过`);
+              addLog(
+                taskId,
+                "warn",
+                `  场地 ${site_id} 部分可用但时段索引无法解析，跳过`,
+              );
               return;
             }
-            finalOrderData = { ...orderData, time_list: sorted, start_time: partialStart, end_time: partialEnd };
-            addLog(taskId, "info",
-              `  场地 ${site_id} 部分可用（${partialStart}-${partialEnd}），冲突时段: ${conflicts.join(", ")}，正在确认预约...`
+            finalOrderData = {
+              ...orderData,
+              time_list: sorted,
+              start_time: partialStart,
+              end_time: partialEnd,
+            };
+            addLog(
+              taskId,
+              "info",
+              `  场地 ${site_id} 部分可用（${partialStart}-${partialEnd}），冲突时段: ${conflicts.join(", ")}，正在确认预约...`,
             );
           }
 
           if (won) return;
           won = true;
-          if (!isPartial) addLog(taskId, "success", `  场地 ${site_id} 可用！正在确认预约...`);
+          if (!isPartial)
+            addLog(
+              taskId,
+              "success",
+              `  场地 ${site_id} 可用！正在确认预约...`,
+            );
           try {
             const orderRes = await post(
               "/creat_order",
@@ -314,7 +335,7 @@ async function tryTimeSlot(
           pending--;
           checkPending();
         });
-    }
+    });
   });
 }
 
@@ -392,6 +413,5 @@ export async function executeReserve(taskId: string) {
   }
 
   addLog(taskId, "error", "所有时间段均已被占满，抢场失败。");
-  addLog(taskId, "error", "如有401错误，下次预约请切记更新token！");
   updateStatus(taskId, "failed");
 }

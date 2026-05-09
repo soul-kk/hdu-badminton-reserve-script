@@ -99,10 +99,7 @@ function SlotRow({
 
 export default function ReservePage() {
   // form state
-  const [token, setToken] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    return localStorage.getItem('reserve_token') ?? '';
-  });
+  const [token, setToken] = useState('');
   const [date, setDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 2);
@@ -263,7 +260,7 @@ export default function ReservePage() {
                       <label className="block text-sm font-medium text-gray-600 mb-1"><b>Token【❗️每次记得更新】</b></label>
                       <textarea
                         value={token}
-                        onChange={e => { setToken(e.target.value); localStorage.setItem('reserve_token', e.target.value); }}
+                        onChange={e => setToken(e.target.value)}
                         placeholder="粘贴钉钉 JWT token"
                         rows={5}
                         required
@@ -425,6 +422,14 @@ export default function ReservePage() {
                       {task.result.venue_name} {task.result.site_id}号场 ·{' '}
                       {task.result.order_date} {task.result.start_time}–{task.result.end_time}
                     </p>
+                  </div>
+                )}
+
+                {/* failed result card */}
+                {task?.status === 'failed' && (
+                  <div className="mt-4 shrink-0 rounded-xl bg-red-900/40 border border-red-700 p-4">
+                    <p className="text-red-400 font-semibold text-sm mb-1">抢场失败 😢</p>
+                    <p className="text-red-300 text-xs">👿👿👿👿气死我了👿👿👿👿</p>
                   </div>
                 )}
               </div>
