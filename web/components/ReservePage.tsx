@@ -60,7 +60,7 @@ function SlotRow({
 }: {
   slot: TimeSlot;
   index: number;
-  onChange: (i: number, field: keyof TimeSlot, val: string) => void;
+  onChange: (i: number, updates: Partial<TimeSlot>) => void;
   onRemove: (i: number) => void;
   canRemove: boolean;
 }) {
@@ -69,7 +69,12 @@ function SlotRow({
       <span className="text-sm text-gray-500 w-4">{index + 1}.</span>
       <select
         value={slot.start_time}
-        onChange={e => onChange(index, 'start_time', e.target.value)}
+        onChange={e => {
+          const val = e.target.value;
+          const idx = TIME_OPTIONS.indexOf(val);
+          const linkedEnd = TIME_OPTIONS[Math.min(idx + 2, TIME_OPTIONS.length - 1)];
+          onChange(index, { start_time: val, end_time: linkedEnd });
+        }}
         className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {TIME_OPTIONS.slice(0, -1).map(t => <option key={t} value={t}>{t}</option>)}
@@ -77,7 +82,12 @@ function SlotRow({
       <span className="text-gray-400 text-sm">→</span>
       <select
         value={slot.end_time}
-        onChange={e => onChange(index, 'end_time', e.target.value)}
+        onChange={e => {
+          const val = e.target.value;
+          const idx = TIME_OPTIONS.indexOf(val);
+          const linkedStart = TIME_OPTIONS[Math.max(idx - 2, 0)];
+          onChange(index, { start_time: linkedStart, end_time: val });
+        }}
         className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {TIME_OPTIONS.slice(1).map(t => <option key={t} value={t}>{t}</option>)}
@@ -209,8 +219,8 @@ export default function ReservePage() {
 
   // ── handlers ───────────────────────────────────────────────────────────────
 
-  function updateSlot(i: number, field: keyof TimeSlot, val: string) {
-    setSlots(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s));
+  function updateSlot(i: number, updates: Partial<TimeSlot>) {
+    setSlots(prev => prev.map((s, idx) => idx === i ? { ...s, ...updates } : s));
   }
 
   function addSlot() {
