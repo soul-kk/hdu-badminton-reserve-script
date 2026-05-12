@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { parseTokenExp, todayDeadlineMs } from '@/lib/utils';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -99,7 +100,17 @@ function SlotRow({
 
 export default function ReservePage() {
   // form state
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const saved = localStorage.getItem('reserve_token');
+    if (!saved) return '';
+    const exp = parseTokenExp(saved);
+    if (exp === null || exp * 1000 < todayDeadlineMs()) {
+      localStorage.removeItem('reserve_token');
+      return '';
+    }
+    return saved;
+  });
   const [date, setDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 2);
@@ -132,6 +143,19 @@ export default function ReservePage() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // derived: token expiry display
+  const tokenExpInfo = useMemo(() => {
+    const exp = parseTokenExp(token);
+    if (exp === null) return null;
+    const d = new Date(exp * 1000);
+    const expired = d.getTime() < todayDeadlineMs();
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return { label: `${month}月${day}日 ${hh}:${mm}`, expired };
+  }, [token]);
 
   const logEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -257,10 +281,17 @@ export default function ReservePage() {
                   >
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1"><b>Token【❗️每次记得更新】</b></label>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
+                        <b>Token</b>
+                        {tokenExpInfo && (
+                          <span className="ml-2 text-xs font-normal text-gray-400">
+                            过期时间：{tokenExpInfo.label} {tokenExpInfo.expired ? '【不可用❌】' : '【可用✅】'}
+                          </span>
+                        )}
+                      </label>
                       <textarea
                         value={token}
-                        onChange={e => setToken(e.target.value)}
+                        onChange={e => { setToken(e.target.value); localStorage.setItem('reserve_token', e.target.value); }}
                         placeholder="粘贴钉钉 JWT token"
                         rows={5}
                         required
@@ -416,7 +447,7 @@ export default function ReservePage() {
                 {/* success result card */}
                 {task?.status === 'success' && task.result && (
                   <div className="mt-4 shrink-0 rounded-xl bg-green-900/40 border border-green-700 p-4">
-                    <p className="text-green-400 font-semibold text-sm mb-1">预约成功！（记得去钉钉里邀请好友好友👯）</p>
+                    <p className="text-green-400 font-semibold text-sm mb-1">预约成功！（记得去钉钉里邀请好友👯）</p>
                     <p className="text-green-300 text-xs">订单号：{task.result.order_num}</p>
                     <p className="text-green-300 text-xs">
                       {task.result.venue_name} {task.result.site_id}号场 ·{' '}
