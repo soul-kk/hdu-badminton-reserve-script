@@ -1,0 +1,38 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            cd /www/wwwroot/badminton-reserve
+
+            echo "==> git pull"
+            git pull origin main
+
+            echo "==> npm ci"
+            cd web
+            npm ci
+
+            echo "==> npm run build"
+            npm run build
+
+            echo "==> pm2 restart"
+            pm2 restart badminton
+
+            echo "==> done"
