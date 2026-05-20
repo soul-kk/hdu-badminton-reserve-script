@@ -169,6 +169,8 @@ export default function ReservePage() {
 
   const logEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 记录上一次 logs 长度，用于区分"初次加载"和"新增日志"
+  const prevLogLenRef = useRef<number | null>(null);
 
   // ── polling ────────────────────────────────────────────────────────────────
 
@@ -212,9 +214,13 @@ export default function ReservePage() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // auto-scroll logs
+  // 仅在 polling 期间新增日志时自动滚到底部；初次加载恢复任务不触发，避免刷新页面跳到底部
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const len = task?.logs.length ?? 0;
+    if (prevLogLenRef.current !== null && len > prevLogLenRef.current) {
+      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevLogLenRef.current = len;
   }, [task?.logs.length]);
 
   // ── handlers ───────────────────────────────────────────────────────────────
