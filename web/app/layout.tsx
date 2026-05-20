@@ -16,7 +16,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className="h-full">
-      <body className="min-h-full bg-gray-50 text-gray-900 antialiased">{children}</body>
+      <body className="min-h-full bg-gray-50 text-gray-900 antialiased flex flex-col">
+        <main className="flex-1">{children}</main>
+        <footer className="py-3 text-center text-xs text-gray-400">
+          <a
+            href="https://beian.miit.gov.cn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            浙ICP备2026032879号-1
+          </a>
+        </footer>
+      </body>
     </html>
   );
 }
