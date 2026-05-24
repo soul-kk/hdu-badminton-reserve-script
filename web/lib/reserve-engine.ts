@@ -9,7 +9,7 @@ const USER_AGENT =
 
 const VENUE_NAME = "综合馆羽毛球";
 const VENUE_TYPE = "badminton";
-const PREFERRED_SITES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const PREFERRED_SITES = [5, 6, 2, 3, 4, 1, 7, 8, 9, 10, 11, 12];
 const RETRY_STATUS = new Set([502, 403]);
 const RETRY_DELAYS_MS = [500, 1000];
 const SITE_STAGGER_MS = 50; // 每个场地请求错开 50ms，避免同时爆发触发限流
