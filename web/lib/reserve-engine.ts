@@ -9,7 +9,7 @@ const USER_AGENT =
 
 const VENUE_NAME = "综合馆羽毛球";
 const VENUE_TYPE = "badminton";
-const PREFERRED_SITES = [5, 6, 2, 3, 4, 1, 7, 8, 9, 10, 11, 12];
+const PREFERRED_SITES = [6, 5, 2, 3, 4, 1, 7, 8, 9, 10, 11, 12];
 const RETRY_STATUS = new Set([502, 403]);
 const RETRY_DELAYS_MS = [500, 1000];
 const SITE_STAGGER_MS = 50; // 每个场地请求错开 50ms，避免同时爆发触发限流
@@ -250,10 +250,16 @@ async function tryTimeSlot(
 
     PREFERRED_SITES.forEach((site_id, idx) => {
       const orderData = buildOrderData(site_id);
-      const launch = idx === 0
-        ? Promise.resolve()
-        : sleep(idx * SITE_STAGGER_MS, signal).catch(() => { /* aborted */ });
-      launch.then(() => post("/creat_book_info", token, { orderData }, signal, taskId))
+      const launch =
+        idx === 0
+          ? Promise.resolve()
+          : sleep(idx * SITE_STAGGER_MS, signal).catch(() => {
+              /* aborted */
+            });
+      launch
+        .then(() =>
+          post("/creat_book_info", token, { orderData }, signal, taskId),
+        )
         .then(async checkRes => {
           if (won || signal.aborted) return;
           const available = (checkRes.available_times ?? []) as number[];
