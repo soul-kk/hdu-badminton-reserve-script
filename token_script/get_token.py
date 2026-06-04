@@ -10,6 +10,7 @@ import sys
 import time
 import shutil
 import signal
+import tempfile
 import subprocess
 import platform
 
@@ -24,8 +25,8 @@ if getattr(sys, "_MEIPASS", None):
 else:
     _BUNDLE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-TOKEN_FILE = os.path.join(SCRIPT_DIR, "token.txt")
+# 进程间通信用的临时文件，读完即删，不持久化
+TOKEN_FILE = tempfile.mktemp(prefix="badminton_token_", suffix=".tmp")
 ADDON_FILE = os.path.join(_BUNDLE_DIR, "extractor.py")
 TIMEOUT = 240  # 4 分钟
 
@@ -277,8 +278,6 @@ _mitm_proc = None
 def start_mitmdump():
     global _mitm_proc
     print_step("启动流量拦截")
-    if os.path.exists(TOKEN_FILE):
-        os.remove(TOKEN_FILE)
 
     cmd = [
         "mitmdump",
@@ -336,11 +335,17 @@ def wait_for_token():
 
 
 # ============================================================
-#  保存并展示 Token
+#  展示 Token
 # ============================================================
 def save_token():
     with open(TOKEN_FILE, "r") as f:
         token = f.read().strip()
+
+    # 读完立即删除临时文件
+    try:
+        os.remove(TOKEN_FILE)
+    except OSError:
+        pass
 
     print()
     print(f"{GREEN}{BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{NC}")
@@ -350,7 +355,6 @@ def save_token():
     print(f"  {BOLD}Token：{NC}")
     print(token)
     print()
-    print(f"  {BOLD}保存至：{NC}{TOKEN_FILE}")
 
     # 复制到剪切板
     copied = False
@@ -386,6 +390,16 @@ def save_token():
 
 
 # ============================================================
+#  Windows 打包模式下暂停等待用户确认
+# ============================================================
+def _pause_if_needed():
+    """双击 .exe 运行时，程序结束前等待用户按回车，防止窗口瞬间关闭"""
+    if IS_WINDOWS and getattr(sys, "_MEIPASS", None):
+        print()
+        input("按回车键关闭窗口...")
+
+
+# ============================================================
 #  清理
 # ============================================================
 def cleanup(signum=None, frame=None):
@@ -393,6 +407,7 @@ def cleanup(signum=None, frame=None):
     print_warn("中断，正在清理...")
     stop_mitmdump()
     restore_proxy()
+    _pause_if_needed()
     sys.exit(1)
 
 
@@ -402,6 +417,10 @@ def cleanup(signum=None, frame=None):
 def main():
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
+
+    # PyInstaller --onefile 启动时需要解压依赖，可能有几秒延迟，提前告知用户
+    if getattr(sys, "_MEIPASS", None):
+        print("正在启动，请稍候...", flush=True)
 
     print()
     print(f"{CYAN}{BOLD}╔══════════════════════════════════╗{NC}")
@@ -413,6 +432,7 @@ def main():
     if not shutil.which("mitmdump"):
         print_err("未找到 mitmdump，请先安装：")
         print("    pip install mitmproxy")
+        _pause_if_needed()
         sys.exit(1)
     result = _run(["mitmdump", "--version"], check=False)
     version = result.stdout.strip().splitlines()[0] if result.stdout else "unknown"
@@ -428,6 +448,7 @@ def main():
             stop_mitmdump()
             restore_proxy()
             save_token()
+            _pause_if_needed()
         else:
             stop_mitmdump()
             restore_proxy()
@@ -435,11 +456,13 @@ def main():
             print_err("超时未捕获到 Token，请检查：")
             print("  1. 是否打开了「场馆速约」并触发了登录")
             print("  2. 证书是否已正确安装")
+            _pause_if_needed()
             sys.exit(1)
     except Exception as e:
         stop_mitmdump()
         restore_proxy()
         print_err(f"异常退出：{e}")
+        _pause_if_needed()
         sys.exit(1)
 
 
