@@ -1,6 +1,6 @@
 """
 extractor.py — mitmproxy addon
-拦截 sportmeta.hdu.edu.cn 的请求，提取 Authorization Bearer token
+拦截 sportmeta.hdu.edu.cn 的响应，提取登录返回的新 token
 """
 
 import os
