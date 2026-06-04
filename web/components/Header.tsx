@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export type TabKey = 'reserve' | 'recent' | 'guide';
@@ -32,9 +32,11 @@ const STATUS_BADGE: Record<TaskStatus | 'unknown', { label: string; cls: string 
 function RecentTasksPanel({
   onNavigateToReserve,
   currentTaskId,
+  onTasksLoaded,
 }: {
   onNavigateToReserve: (taskId: string) => void;
   currentTaskId: string | null;
+  onTasksLoaded?: (tasks: RecentTask[]) => void;
 }) {
   const [tasks, setTasks] = useState<RecentTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,8 @@ function RecentTasksPanel({
     );
     setTasks(results);
     setLoading(false);
-  }, []);
+    onTasksLoaded?.(results);
+  }, [onTasksLoaded]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
@@ -152,8 +155,8 @@ function TokenGuide() {
             key={tab.key}
             onClick={() => setActiveDevice(tab.key)}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${activeDevice === tab.key
-                ? 'bg-white text-blue-600 border-b-2 border-blue-500'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+              ? 'bg-white text-blue-600 border-b-2 border-blue-500'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
               }`}
           >
             <span>{tab.icon}</span>
@@ -277,9 +280,10 @@ const TABS: { key: TabKey; label: string }[] = [
 interface HeaderProps {
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
+  recentDot?: boolean;
 }
 
-export function Header({ activeTab, onTabChange }: HeaderProps) {
+export function Header({ activeTab, onTabChange, recentDot = false }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
       <div className="max-w-5xl mx-auto px-4 md:px-8">
@@ -290,12 +294,15 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
               <button
                 key={tab.key}
                 onClick={() => onTabChange(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                   }`}
               >
                 {tab.label}
+                {tab.key === 'recent' && recentDot && (
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
+                )}
               </button>
             ))}
           </div>
@@ -317,10 +324,45 @@ export default function AppShell({ children }: AppShellProps) {
   const currentTaskId = searchParams.get('taskId');
 
   const [activeTab, setActiveTab] = useState<TabKey>('reserve');
+  const [recentDot, setRecentDot] = useState(false);
+  const [runningTaskId, setRunningTaskId] = useState<string | null>(null);
+  const [showRunningModal, setShowRunningModal] = useState(false);
+  const checkedRef = useRef(false);
+
+  // On mount (no taskId in URL): scan localStorage for running/pending tasks
+  useEffect(() => {
+    if (currentTaskId || checkedRef.current) return;
+    checkedRef.current = true;
+
+    const raw = localStorage.getItem('recent_task_ids');
+    if (!raw) return;
+    let ids: string[] = [];
+    try { ids = JSON.parse(raw); } catch { return; }
+
+    Promise.all(
+      ids.map(async (taskId) => {
+        try {
+          const res = await fetch(`/api/task/${taskId}`);
+          if (!res.ok) return null;
+          const data = await res.json();
+          return { taskId, status: data.status as TaskStatus };
+        } catch { return null; }
+      })
+    ).then((results) => {
+      const active = results.find(
+        (r) => r && (r.status === 'running' || r.status === 'pending')
+      );
+      if (active) {
+        setRunningTaskId(active.taskId);
+        setRecentDot(true);
+        setShowRunningModal(true);
+      }
+    });
+  }, [currentTaskId]);
 
   function handleTabChange(tab: TabKey) {
     setActiveTab(tab);
-    // taskId is preserved in URL when switching tabs — never clear it
+    if (tab === 'recent') setRecentDot(false);
   }
 
   function handleNavigateToReserve(taskId: string) {
@@ -328,19 +370,62 @@ export default function AppShell({ children }: AppShellProps) {
     setActiveTab('reserve');
   }
 
+  function handleModalView() {
+    setShowRunningModal(false);
+    setRecentDot(false);
+    if (runningTaskId) handleNavigateToReserve(runningTaskId);
+  }
+
+  function handleModalDismiss() {
+    setShowRunningModal(false);
+  }
+
   return (
     <>
-      <Header activeTab={activeTab} onTabChange={handleTabChange} />
+      <Header activeTab={activeTab} onTabChange={handleTabChange} recentDot={recentDot} />
+
+      {/* Running task modal */}
+      {showRunningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🏃</span>
+              <div>
+                <p className="font-semibold text-gray-800">有任务正在运行中</p>
+                <p className="mt-1 text-sm text-gray-500">是否跳转到该任务查看进度？</p>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={handleModalDismiss}
+                className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleModalView}
+                className="flex-1 py-2 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+              >
+                查看
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'reserve' && children}
       {activeTab === 'recent' && (
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6">
           <h2 className="text-base font-semibold text-gray-700 mb-4">近期任务</h2>
-          <RecentTasksPanel onNavigateToReserve={handleNavigateToReserve} currentTaskId={currentTaskId} />
+          <RecentTasksPanel
+            onNavigateToReserve={handleNavigateToReserve}
+            currentTaskId={currentTaskId}
+          />
         </div>
       )}
       {activeTab === 'guide' && (
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6">
-          <h2 className="text-base font-semibold text-gray-700 mb-4">使用指南</h2>
+          <h2 className="text-base font-semibold text-gray-700 mb-4">不要和别人说！我们偷偷用！</h2>
           <GuidePanel />
         </div>
       )}

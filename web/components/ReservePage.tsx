@@ -396,7 +396,7 @@ export default function ReservePage() {
                           />
                         ))}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">按顺序尝试，成功后即停止</p>
+                      <p className="text-xs text-gray-400 mt-1">按顺序尝试，一般第一个就会成功</p>
                     </div>
 
                   </fieldset>
