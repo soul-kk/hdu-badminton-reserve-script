@@ -8,10 +8,10 @@ get_token.py — 跨平台一键获取场地预约系统 Token
 import os
 import sys
 import time
-import shutil
 import signal
 import tempfile
 import subprocess
+import multiprocessing
 import platform
 
 # ============================================================
@@ -217,13 +217,15 @@ def check_cert():
 
     if not os.path.exists(cert_path):
         print_warn("未找到证书，先启动一次 mitmdump 生成...")
-        proc = subprocess.Popen(
-            ["mitmdump", "--listen-port", str(PROXY_PORT), "--quiet"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        proc = multiprocessing.Process(
+            target=_mitmdump_cert_gen_worker,
+            args=(PROXY_PORT,),
+            daemon=True,
         )
+        proc.start()
         time.sleep(2)
         proc.terminate()
-        proc.wait()
+        proc.join()
 
     if not os.path.exists(cert_path):
         print_err("证书生成失败，请手动运行一次 mitmdump")
@@ -270,6 +272,28 @@ def _install_cert_win(cert_path):
 
 
 # ============================================================
+#  mitmproxy 进程工作函数（必须在模块顶层，multiprocessing 序列化需要）
+# ============================================================
+
+def _mitmdump_worker(listen_port, addon_file, token_file):
+    """在独立子进程中通过 Python API 启动 mitmproxy，无需外部 mitmdump 命令"""
+    from mitmproxy.tools.main import mitmdump
+    mitmdump([
+        "--listen-port", str(listen_port),
+        "--ssl-insecure",
+        "-s", addon_file,
+        "--set", f"token_file={token_file}",
+        "--quiet",
+    ])
+
+
+def _mitmdump_cert_gen_worker(listen_port):
+    """启动 mitmproxy 片刻以生成 CA 证书，完成后由外部 terminate()"""
+    from mitmproxy.tools.main import mitmdump
+    mitmdump(["--listen-port", str(listen_port), "--quiet"])
+
+
+# ============================================================
 #  mitmdump 管理
 # ============================================================
 _mitm_proc = None
@@ -279,19 +303,14 @@ def start_mitmdump():
     global _mitm_proc
     print_step("启动流量拦截")
 
-    cmd = [
-        "mitmdump",
-        "--listen-port", str(PROXY_PORT),
-        "--ssl-insecure",
-        "-s", ADDON_FILE,
-        "--set", f"token_file={TOKEN_FILE}",
-        "--quiet",
-    ]
-    _mitm_proc = subprocess.Popen(
-        cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    _mitm_proc = multiprocessing.Process(
+        target=_mitmdump_worker,
+        args=(PROXY_PORT, ADDON_FILE, TOKEN_FILE),
+        daemon=True,
     )
-    time.sleep(1)
-    if _mitm_proc.poll() is not None:
+    _mitm_proc.start()
+    time.sleep(2)
+    if not _mitm_proc.is_alive():
         print_err("mitmdump 启动失败")
         sys.exit(1)
     print_ok(f"mitmdump 已启动（PID: {_mitm_proc.pid}）")
@@ -299,11 +318,10 @@ def start_mitmdump():
 
 def stop_mitmdump():
     global _mitm_proc
-    if _mitm_proc and _mitm_proc.poll() is None:
+    if _mitm_proc and _mitm_proc.is_alive():
         _mitm_proc.terminate()
-        try:
-            _mitm_proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
+        _mitm_proc.join(timeout=5)
+        if _mitm_proc.is_alive():
             _mitm_proc.kill()
     _mitm_proc = None
 
@@ -429,14 +447,17 @@ def main():
 
     # 检查依赖
     print_step("检查依赖")
-    if not shutil.which("mitmdump"):
-        print_err("未找到 mitmdump，请先安装：")
+    try:
+        import mitmproxy  # noqa: F401
+        import mitmproxy.tools.main  # noqa: F401
+        import mitmproxy as _mitm
+        version = getattr(_mitm, "__version__", "unknown")
+        print_ok(f"mitmproxy 已就绪：{version}")
+    except ImportError:
+        print_err("未找到 mitmproxy，请先安装：")
         print("    pip install mitmproxy")
         _pause_if_needed()
         sys.exit(1)
-    result = _run(["mitmdump", "--version"], check=False)
-    version = result.stdout.strip().splitlines()[0] if result.stdout else "unknown"
-    print_ok(f"mitmproxy 已安装：{version}")
 
     check_cert()
     set_proxy()
@@ -467,4 +488,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()  # PyInstaller + Windows multiprocessing 必须
     main()

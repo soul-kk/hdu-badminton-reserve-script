@@ -193,12 +193,17 @@ export default function ReservePage() {
 
   useEffect(() => () => stopPolling(), [stopPolling]);
 
-  // load task from URL param on mount
+  // load task from URL param — re-runs whenever taskId in URL changes
+  const urlTaskId = searchParams.get('taskId');
   useEffect(() => {
-    const id = searchParams.get('taskId');
-    if (!id) return;
+    if (!urlTaskId) return;
+    stopPolling();
+    // reset task view so stale state isn't shown while the new task loads
+    setTask(null);
+    setTaskId(null);
+    prevLogLenRef.current = null;
     (async () => {
-      const res = await fetch(`/api/task/${id}`);
+      const res = await fetch(`/api/task/${urlTaskId}`);
       if (!res.ok) { setNotFoundDialog(true); return; }
       const data = await res.json();
       setToken(data.token);
@@ -208,11 +213,11 @@ export default function ReservePage() {
       setNickname(data.nickname);
       setPhone(data.phone);
       setSlots(data.preferred_time_slots);
-      setTaskId(id);
+      setTaskId(urlTaskId);
       setTask({ status: data.status, logs: data.logs, result: data.result });
-      if (['pending', 'running'].includes(data.status)) startPolling(id);
+      if (['pending', 'running'].includes(data.status)) startPolling(urlTaskId);
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlTaskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 仅在 polling 期间新增日志时自动滚到底部；初次加载恢复任务不触发，避免刷新页面跳到底部
   useEffect(() => {
@@ -253,6 +258,15 @@ export default function ReservePage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? '提交失败'); return; }
+
+      // 记录到近期任务（最多保留 6 条，FIFO）
+      try {
+        const raw = localStorage.getItem('recent_task_ids');
+        const ids: string[] = raw ? JSON.parse(raw) : [];
+        const updated = [data.taskId, ...ids.filter((id: string) => id !== data.taskId)].slice(0, 6);
+        localStorage.setItem('recent_task_ids', JSON.stringify(updated));
+      } catch { /* ignore */ }
+
       router.replace(`/?taskId=${data.taskId}`);
       setTaskId(data.taskId);
       startPolling(data.taskId);
@@ -281,8 +295,6 @@ export default function ReservePage() {
     <>
       <div className="min-h-screen p-4 md:p-8">
         <div className="max-w-5xl mx-auto">
-          {/* header */}
-          <h1 className="text-2xl font-bold text-gray-800 mb-6">🏸 羽毛球场，我抢抢抢抢抢！🤓</h1>
 
           <div className="flex flex-col lg:flex-row gap-6">
 
@@ -384,7 +396,7 @@ export default function ReservePage() {
                           />
                         ))}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">按顺序尝试，第一个成功即停止</p>
+                      <p className="text-xs text-gray-400 mt-1">按顺序尝试，成功后即停止</p>
                     </div>
 
                   </fieldset>

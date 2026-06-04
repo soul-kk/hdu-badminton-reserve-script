@@ -42,10 +42,7 @@ def main():
         "--onefile",
         "--name", "get_token",
         "--add-data", add_data,
-        "--hidden-import", "mitmproxy",
-        "--hidden-import", "mitmproxy.addons",
-        "--hidden-import", "mitmproxy.net",
-        "--hidden-import", "mitmproxy.proxy",
+        "--collect-all", "mitmproxy",   # 完整打包 mitmproxy 所有子模块
         "--distpath", os.path.join(SCRIPT_DIR, "dist"),
         "--workpath", os.path.join(SCRIPT_DIR, "build"),
         "--specpath", SCRIPT_DIR,
