@@ -70,7 +70,7 @@ export function fileLogFooter(taskId: string, status: string) {
   try {
     ensureLogsDir();
     const ts = new Date().toISOString();
-    const statusTag = status === 'success' ? '✅ SUCCESS' : status === 'failed' ? '❌ FAILED' : '⚪ ' + status.toUpperCase();
+    const statusTag = status === 'success' ? '✅ SUCCESS' : status === 'failed' ? '❌ FAILED' : status === 'cancelled' ? '🚫 CANCELLED (用户取消)' : '⚪ ' + status.toUpperCase();
     const footer =
       `\n[${ts}] 任务结束: ${statusTag}\n` +
       `${'━'.repeat(80)}\n\n\n`;

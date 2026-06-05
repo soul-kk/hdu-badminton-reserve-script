@@ -390,6 +390,7 @@ export async function executeReserve(taskId: string) {
     fileLog(taskId, level, message);
   }
 
+  try {
   updateStatus(taskId, "running");
   addLog(taskId, "info", "读取配置完成");
   flog("info", "读取配置完成");
@@ -477,4 +478,16 @@ export async function executeReserve(taskId: string) {
   flog("error", "所有时间段均已被占满，抢场失败。");
   updateStatus(taskId, "failed");
   fileLogFooter(taskId, "failed");
+
+  } catch (e) {
+    // 取消导致的异常也要记录到文件日志
+    if (signal.aborted) {
+      flog("warn", "任务被用户取消");
+      fileLogFooter(taskId, "cancelled");
+    } else {
+      flog("error", `异常退出: ${(e as Error).message}`);
+      fileLogFooter(taskId, "failed");
+      throw e;
+    }
+  }
 }
