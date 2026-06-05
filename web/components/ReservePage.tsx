@@ -317,6 +317,18 @@ export default function ReservePage() {
     e.preventDefault();
     setError('');
 
+    // Token 合法性校验（仅生产环境）
+    if (process.env.NODE_ENV === 'production') {
+      const parts = token.trim().split('.');
+      if (
+        parts.length !== 3 ||
+        parts[0] !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+      ) {
+        alert('token 格式不合法！请仔细检查并重新输入！');
+        return;
+      }
+    }
+
     // 校验场地分批：每批必须恰好 4 个，不重复
     const allSites = siteBatches.flat();
     if (siteBatches.some(b => b.length !== 4)) {
