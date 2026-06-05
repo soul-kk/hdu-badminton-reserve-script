@@ -238,18 +238,18 @@ def check_cert():
 
 
 def _install_cert_mac(cert_path):
-    result = _run(
-        ["security", "find-certificate", "-a", "-c", "mitmproxy",
-         "/Library/Keychains/System.keychain"],
+    # 检查证书是否已被信任（不仅仅是存在）
+    verify_result = _run(
+        ["security", "verify-cert", "-c", cert_path],
         check=False
     )
-    if "mitmproxy" not in result.stdout:
-        print_warn("证书未安装，正在安装到系统钥匙串（需要输入密码）...")
+    if verify_result.returncode == 0:
+        print_ok("mitmproxy 证书已信任")
+    else:
+        print_warn("证书未信任，正在安装到系统钥匙串（需要输入系统密码）...")
         _run(["sudo", "security", "add-trusted-cert", "-d", "-r", "trustRoot",
               "-k", "/Library/Keychains/System.keychain", cert_path])
         print_ok("证书已安装并信任")
-    else:
-        print_ok("mitmproxy 证书已信任")
 
 
 def _install_cert_win(cert_path):
