@@ -251,6 +251,13 @@ function GuidePanel() {
           </details>
           <details className="group px-5 py-3">
             <summary className="cursor-pointer font-medium text-gray-700 list-none flex items-center justify-between">
+              为什么会预约失败？
+              <span className="text-gray-400 group-open:rotate-180 transition-transform text-xs">▼</span>
+            </summary>
+            <p className="mt-2 text-gray-500 leading-relaxed">常见原因：<strong>403</strong> 是服务器限流，<strong>502/500</strong> 是服务器错误，这两种情况系统会自动重试。<strong>401</strong> 是 token 无效或已过期，会直接失败，请确保下午 3 点后再抓取 token。</p>
+          </details>
+          <details className="group px-5 py-3">
+            <summary className="cursor-pointer font-medium text-gray-700 list-none flex items-center justify-between">
               需要一直开着预约网页吗？
               <span className="text-gray-400 group-open:rotate-180 transition-transform text-xs">▼</span>
             </summary>

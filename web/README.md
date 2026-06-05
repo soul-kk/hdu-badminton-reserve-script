@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# kk抢场 — HDU 羽毛球馆自动预约
 
-## Getting Started
-
-First, run the development server:
+## 启动
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 抢场逻辑
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 分批请求
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+场地请求不再一次性并发 12 个，而是分 **3 批** 发送（用户可在前端自定义每批包含哪些场地）：
 
-## Learn More
+1. 每批内场地间隔 50ms stagger 并发
+2. 批间等待 300ms
+3. 任何一批有场地成功 → 立即停止后续批次
 
-To learn more about Next.js, take a look at the following resources:
+默认分组：第 1 批 [6, 5, 2, 3] → 第 2 批 [4, 1, 7, 8] → 第 3 批 [9, 10, 11, 12]
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 自动错峰（多用户）
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+多人同时使用同一服务器时，所有请求从同一 IP 发出。为避免 IP 级限流（403），系统会自动为每个用户计算一个时间偏移：
 
-## Deploy on Vercel
+- 第 1 个用户：20:00:000 开始
+- 第 2 个用户：20:00:150 开始
+- 第 3 个用户：20:00:300 开始
+- ...以此类推（每人错开 150ms）
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+偏移量根据当前 running 状态的任务数量自动计算，用户无需手动配置。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 403 处理
+
+收到 403 时不再重试同一请求（避免浪费时间），直接标记该场地失败并尝试下一个。仅 502 错误会触发重试。
+
+### 文件日志
+
+每次预约过程会额外写入 `<项目根>/logs/reserve_YYYY-MM-DD.log`，包含完整 HTTP 响应体，方便事后排查。

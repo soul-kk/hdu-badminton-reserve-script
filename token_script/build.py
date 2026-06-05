@@ -42,7 +42,14 @@ def main():
         "--onefile",
         "--name", "get_token",
         "--add-data", add_data,
-        "--collect-all", "mitmproxy",   # 完整打包 mitmproxy 所有子模块
+        "--collect-all", "mitmproxy",       # mitmproxy 所有子模块
+        "--collect-all", "cryptography",    # mitmproxy 依赖的 C 扩展
+        "--collect-all", "OpenSSL",         # pyOpenSSL
+        "--collect-all", "certifi",         # CA 证书包
+        "--collect-all", "h2",              # HTTP/2 支持
+        "--collect-all", "hpack",           # HTTP/2 头压缩
+        "--hidden-import", "mitmproxy.net.tls",
+        "--hidden-import", "mitmproxy.proxy.layers.tls",
         "--distpath", os.path.join(SCRIPT_DIR, "dist"),
         "--workpath", os.path.join(SCRIPT_DIR, "build"),
         "--specpath", SCRIPT_DIR,

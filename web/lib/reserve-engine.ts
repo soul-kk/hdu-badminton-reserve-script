@@ -1,7 +1,8 @@
 // 抢场引擎 — 移植自 script/main/，适配 web 任务系统
 // 通过 addLog 写入任务日志，通过 AbortSignal 支持取消
 
-import { addLog, getTask, updateStatus } from "./task-manager";
+import { addLog, getTask, getRunningTaskIndex, updateStatus } from "./task-manager";
+import { fileLog, fileLogHeader, fileLogFooter } from "./file-logger";
 
 const BASE_URL = "https://sportmeta.hdu.edu.cn/book/client";
 const USER_AGENT =
@@ -9,10 +10,11 @@ const USER_AGENT =
 
 const VENUE_NAME = "综合馆羽毛球";
 const VENUE_TYPE = "badminton";
-const PREFERRED_SITES = [6, 5, 2, 3, 4, 1, 7, 8, 9, 10, 11, 12];
-const RETRY_STATUS = new Set([502, 403]);
+const RETRY_STATUS = new Set([502]); // 403 不再重试，只重试 502
 const RETRY_DELAYS_MS = [500, 1000];
-const SITE_STAGGER_MS = 50; // 每个场地请求错开 50ms，避免同时爆发触发限流
+const SITE_STAGGER_MS = 50; // 每个场地请求错开 50ms
+const BATCH_GAP_MS = 300; // 批间等待 300ms
+const USER_OFFSET_MS = 150; // 多用户错峰，每人错开 150ms
 
 const TIME_INDEX: Record<string, number> = {
   "08:00": 0,
@@ -86,7 +88,8 @@ async function post(
     });
 
     const text = await res.text();
-    // addLog(taskId, 'api', `← ${res.status}  ${text.slice(0, 200)}`);
+    const retryLabel = attempt > 0 ? ` (retry ${attempt})` : '';
+    fileLog(taskId, 'api', `POST ${path}${retryLabel}  → ${res.status}  ${text}`);
 
     if (RETRY_STATUS.has(res.status)) {
       lastError = new Error(`HTTP ${res.status} on ${path}`);
@@ -200,22 +203,132 @@ async function waitUntilOpen(
 
 // ─── reserve core ───────────────────────────────────────────────────────────
 
+async function tryBatch(
+  sites: number[],
+  token: string,
+  orderDataBuilder: (site_id: number) => object,
+  signal: AbortSignal,
+  taskId: string,
+  flog: (level: Parameters<typeof fileLog>[1], message: string) => void,
+): Promise<object | null> {
+  return new Promise<object | null>(resolve => {
+    let pending = sites.length;
+    let resolved = false;
+    let won = false;
+
+    function finish(result: object | null) {
+      if (!resolved) {
+        resolved = true;
+        resolve(result);
+      }
+    }
+    function checkPending() {
+      if (pending <= 0 && !resolved) finish(null);
+    }
+
+    sites.forEach((site_id, idx) => {
+      const orderData = orderDataBuilder(site_id);
+      const launch =
+        idx === 0
+          ? Promise.resolve()
+          : sleep(idx * SITE_STAGGER_MS, signal).catch(() => { /* aborted */ });
+      launch
+        .then(() =>
+          post("/creat_book_info", token, { orderData }, signal, taskId),
+        )
+        .then(async checkRes => {
+          if (won || signal.aborted) return;
+          const available = (checkRes.available_times ?? []) as number[];
+          const conflicts = (checkRes.conflict_times ?? []) as number[];
+
+          if (available.length === 0) {
+            const reason =
+              conflicts.length > 0
+                ? `冲突时段: ${conflicts.join(", ")}`
+                : (checkRes.message ?? "无可用时段");
+            addLog(taskId, "info", `  场地 ${site_id} 不可用 — ${reason}`);
+            flog("info", `  场地 ${site_id} 不可用 — ${reason}`);
+            return;
+          }
+
+          const isPartial = conflicts.length > 0;
+          let finalOrderData = orderData as ReturnType<typeof orderDataBuilder> & {
+            time_list: number[];
+            start_time: string;
+            end_time: string;
+          };
+
+          if (isPartial) {
+            const sorted = [...available].sort((a, b) => a - b);
+            const partialStart = INDEX_TO_TIME[sorted[0]];
+            const partialEnd = INDEX_TO_TIME[sorted[sorted.length - 1] + 1];
+            if (!partialStart || !partialEnd) {
+              addLog(taskId, "warn", `  场地 ${site_id} 部分可用但时段索引无法解析，跳过`);
+              flog("warn", `  场地 ${site_id} 部分可用但时段索引无法解析，跳过`);
+              return;
+            }
+            finalOrderData = {
+              ...finalOrderData,
+              time_list: sorted,
+              start_time: partialStart,
+              end_time: partialEnd,
+            };
+            addLog(taskId, "info", `  场地 ${site_id} 部分可用（${partialStart}-${partialEnd}），冲突时段: ${conflicts.join(", ")}，正在确认预约...`);
+            flog("info", `  场地 ${site_id} 部分可用（${partialStart}-${partialEnd}），冲突时段: ${conflicts.join(", ")}，正在确认预约...`);
+          }
+
+          if (won) return;
+          won = true;
+          if (!isPartial) {
+            addLog(taskId, "success", `  场地 ${site_id} 可用！正在确认预约...`);
+            flog("success", `  场地 ${site_id} 可用！正在确认预约...`);
+          }
+          try {
+            const orderRes = await post(
+              "/creat_order",
+              token,
+              { orderData: finalOrderData },
+              signal,
+              taskId,
+            );
+            finish(orderRes.data ?? orderRes);
+          } catch (e) {
+            addLog(taskId, "error", `  场地 ${site_id} 下单异常: ${(e as Error).message}`);
+            flog("error", `  场地 ${site_id} 下单异常: ${(e as Error).message}`);
+            won = false;
+            checkPending();
+          }
+        })
+        .catch((e: Error) => {
+          if (!signal.aborted) {
+            addLog(taskId, "error", `  场地 ${site_id} 查询异常: ${e.message}`);
+            flog("error", `  场地 ${site_id} 查询异常: ${e.message}`);
+          }
+        })
+        .finally(() => {
+          pending--;
+          checkPending();
+        });
+    });
+  });
+}
+
 async function tryTimeSlot(
   token: string,
   cfg: { date: string; openid: string; nickname: string; phone: string },
   slot: { start_time: string; end_time: string },
+  siteBatches: number[][],
   signal: AbortSignal,
   taskId: string,
+  flog: (level: Parameters<typeof fileLog>[1], message: string) => void,
 ) {
   const { date, openid, nickname, phone } = cfg;
   const { start_time, end_time } = slot;
   const time_list = resolveTimeList(start_time, end_time);
+  const totalSites = siteBatches.reduce((n, b) => n + b.length, 0);
 
-  addLog(
-    taskId,
-    "info",
-    `尝试时间段 ${start_time}-${end_time}（time_list: [${time_list}]），并发请求 ${PREFERRED_SITES.length} 个场地...`,
-  );
+  addLog(taskId, "info", `尝试时间段 ${start_time}-${end_time}（time_list: [${time_list}]），分 ${siteBatches.length} 批请求共 ${totalSites} 个场地...`);
+  flog("info", `尝试时间段 ${start_time}-${end_time}（time_list: [${time_list}]），分 ${siteBatches.length} 批请求共 ${totalSites} 个场地...`);
 
   function buildOrderData(site_id: number) {
     return {
@@ -233,116 +346,22 @@ async function tryTimeSlot(
     };
   }
 
-  return new Promise<object | null>(resolve => {
-    let pending = PREFERRED_SITES.length;
-    let resolved = false;
-    let won = false;
+  for (let batchIdx = 0; batchIdx < siteBatches.length; batchIdx++) {
+    if (signal.aborted) return null;
+    const batch = siteBatches[batchIdx];
+    addLog(taskId, "info", `  第 ${batchIdx + 1} 批: 场地 [${batch.join(", ")}]`);
+    flog("info", `  第 ${batchIdx + 1} 批: 场地 [${batch.join(", ")}]`);
 
-    function finish(result: object | null) {
-      if (!resolved) {
-        resolved = true;
-        resolve(result);
-      }
+    const result = await tryBatch(batch, token, buildOrderData, signal, taskId, flog);
+    if (result) return result;
+
+    // 批间等待（最后一批后不等）
+    if (batchIdx < siteBatches.length - 1) {
+      await sleep(BATCH_GAP_MS, signal);
     }
-    function checkPending() {
-      if (pending <= 0 && !resolved) finish(null);
-    }
+  }
 
-    PREFERRED_SITES.forEach((site_id, idx) => {
-      const orderData = buildOrderData(site_id);
-      const launch =
-        idx === 0
-          ? Promise.resolve()
-          : sleep(idx * SITE_STAGGER_MS, signal).catch(() => {
-              /* aborted */
-            });
-      launch
-        .then(() =>
-          post("/creat_book_info", token, { orderData }, signal, taskId),
-        )
-        .then(async checkRes => {
-          if (won || signal.aborted) return;
-          const available = (checkRes.available_times ?? []) as number[];
-          const conflicts = (checkRes.conflict_times ?? []) as number[];
-
-          // Case C: nothing available
-          if (available.length === 0) {
-            const reason =
-              conflicts.length > 0
-                ? `冲突时段: ${conflicts.join(", ")}`
-                : (checkRes.message ?? "无可用时段");
-            addLog(taskId, "info", `  场地 ${site_id} 不可用 — ${reason}`);
-            return;
-          }
-
-          // Case A: fully available (no conflicts)
-          // Case B: partially available (server has pre-reserved available slots for us)
-          const isPartial = conflicts.length > 0;
-          let finalOrderData = orderData;
-
-          if (isPartial) {
-            // Reconstruct orderData with only the available sub-slots
-            const sorted = [...available].sort((a, b) => a - b);
-            const partialStart = INDEX_TO_TIME[sorted[0]];
-            const partialEnd = INDEX_TO_TIME[sorted[sorted.length - 1] + 1];
-            if (!partialStart || !partialEnd) {
-              addLog(
-                taskId,
-                "warn",
-                `  场地 ${site_id} 部分可用但时段索引无法解析，跳过`,
-              );
-              return;
-            }
-            finalOrderData = {
-              ...orderData,
-              time_list: sorted,
-              start_time: partialStart,
-              end_time: partialEnd,
-            };
-            addLog(
-              taskId,
-              "info",
-              `  场地 ${site_id} 部分可用（${partialStart}-${partialEnd}），冲突时段: ${conflicts.join(", ")}，正在确认预约...`,
-            );
-          }
-
-          if (won) return;
-          won = true;
-          if (!isPartial)
-            addLog(
-              taskId,
-              "success",
-              `  场地 ${site_id} 可用！正在确认预约...`,
-            );
-          try {
-            const orderRes = await post(
-              "/creat_order",
-              token,
-              { orderData: finalOrderData },
-              signal,
-              taskId,
-            );
-            finish(orderRes.data ?? orderRes);
-          } catch (e) {
-            addLog(
-              taskId,
-              "error",
-              `  场地 ${site_id} 下单异常: ${(e as Error).message}`,
-            );
-            won = false;
-            checkPending();
-          }
-        })
-        .catch((e: Error) => {
-          if (!signal.aborted)
-            addLog(taskId, "error", `  场地 ${site_id} 查询异常: ${e.message}`);
-        })
-        .finally(() => {
-          pending--;
-          checkPending();
-        });
-    });
-  });
+  return null;
 }
 
 // ─── main entry ─────────────────────────────────────────────────────────────
@@ -358,35 +377,64 @@ export async function executeReserve(taskId: string) {
     nickname,
     phone,
     preferred_time_slots,
+    site_batches,
     abortController,
+    createdAt,
   } = task;
   const signal = abortController.signal;
 
+  const slots = preferred_time_slots.map(s => `${s.start_time}-${s.end_time}`).join(" → ");
+  fileLogHeader(taskId, { nickname, date, slots }, createdAt);
+
+  function flog(level: Parameters<typeof fileLog>[1], message: string) {
+    fileLog(taskId, level, message);
+  }
+
   updateStatus(taskId, "running");
   addLog(taskId, "info", "读取配置完成");
+  flog("info", "读取配置完成");
   addLog(taskId, "info", `目标日期: ${date}`);
-  addLog(
-    taskId,
-    "info",
-    `时间段优先级: ${preferred_time_slots.map(s => `${s.start_time}-${s.end_time}`).join(" → ")}`,
-  );
+  flog("info", `目标日期: ${date}`);
+  addLog(taskId, "info", `时间段优先级: ${slots}`);
+  flog("info", `时间段优先级: ${slots}`);
+  addLog(taskId, "info", `场地分批: ${site_batches.map((b, i) => `第${i + 1}批[${b.join(",")}]`).join(" → ")}`);
+  flog("info", `场地分批: ${site_batches.map((b, i) => `第${i + 1}批[${b.join(",")}]`).join(" → ")}`);
 
   const offset = await syncServerTime(token, signal, taskId);
+  flog("info", `服务器时间同步完成，offset: ${offset >= 0 ? "+" : ""}${offset}ms`);
   await waitUntilOpen(offset, signal, taskId);
 
-  if (signal.aborted) return;
+  if (signal.aborted) {
+    fileLogFooter(taskId, "cancelled");
+    return;
+  }
+
+  // 自动错峰：根据当前 running 的任务数量给每个用户加 offset，避免同 IP 瞬间并发
+  const runningIndex = getRunningTaskIndex(taskId);
+  if (runningIndex > 0) {
+    const userOffset = runningIndex * USER_OFFSET_MS;
+    addLog(taskId, "info", `多任务错峰：排队位置 #${runningIndex + 1}，延迟 ${userOffset}ms`);
+    flog("info", `多任务错峰：排队位置 #${runningIndex + 1}，延迟 ${userOffset}ms`);
+    await sleep(userOffset, signal);
+  }
 
   addLog(taskId, "info", "=== 开始抢场 ===");
+  flog("info", "=== 开始抢场 ===");
 
   for (let i = 0; i < preferred_time_slots.length; i++) {
-    if (signal.aborted) return;
+    if (signal.aborted) {
+      fileLogFooter(taskId, "cancelled");
+      return;
+    }
     const slot = preferred_time_slots[i];
     const result = await tryTimeSlot(
       token,
       { date, openid, nickname, phone },
       slot,
+      site_batches,
       signal,
       taskId,
+      flog,
     );
 
     if (result) {
@@ -399,12 +447,18 @@ export async function executeReserve(taskId: string) {
         end_time: string;
       };
       addLog(taskId, "success", `预约成功！订单号: ${r.order_num}`);
+      flog("success", `预约成功！订单号: ${r.order_num}`);
       addLog(
         taskId,
         "success",
         `场地: ${r.venue_name} ${r.site_id}号 | 时间: ${r.order_date} ${r.start_time}-${r.end_time}`,
       );
+      flog(
+        "success",
+        `场地: ${r.venue_name} ${r.site_id}号 | 时间: ${r.order_date} ${r.start_time}-${r.end_time}`,
+      );
       updateStatus(taskId, "success", r);
+      fileLogFooter(taskId, "success");
       return;
     }
 
@@ -414,10 +468,13 @@ export async function executeReserve(taskId: string) {
         "warn",
         `时间段 ${slot.start_time}-${slot.end_time} 全部场地冲突，等待 1.5s 后尝试备选...`,
       );
+      flog("warn", `时间段 ${slot.start_time}-${slot.end_time} 全部场地冲突，等待 1.5s 后尝试备选...`);
       await sleep(1500, signal);
     }
   }
 
   addLog(taskId, "error", "所有时间段均已被占满，抢场失败。");
+  flog("error", "所有时间段均已被占满，抢场失败。");
   updateStatus(taskId, "failed");
+  fileLogFooter(taskId, "failed");
 }

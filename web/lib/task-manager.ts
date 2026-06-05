@@ -23,6 +23,7 @@ export type TaskInput = {
   nickname: string;
   phone: string;
   preferred_time_slots: TimeSlot[];
+  site_batches: number[][];
 };
 
 export type Task = TaskInput & {
@@ -88,4 +89,16 @@ export function getTaskView(id: string) {
   if (!task) return null;
   const { abortController: _, ...view } = task;
   return view;
+}
+
+// 返回当前 taskId 在所有 running 任务中的顺序索引（用于错峰计算）
+export function getRunningTaskIndex(id: string): number {
+  let index = 0;
+  for (const [taskId, task] of tasks) {
+    if (task.status === 'running') {
+      if (taskId === id) return index;
+      index++;
+    }
+  }
+  return 0;
 }

@@ -33,6 +33,8 @@ const TIME_OPTIONS = [
   '18:00', '19:00', '20:00', '21:00',
 ];
 
+const DEFAULT_SITE_BATCHES: number[][] = [[6, 5, 2, 3], [4, 1, 7, 8], [9, 10, 11, 12]];
+
 const LOG_COLORS: Record<LogEntry['level'], string> = {
   info: 'text-gray-300',
   success: 'text-green-400',
@@ -106,6 +108,59 @@ function SlotRow({
   );
 }
 
+function SiteBatchEditor({
+  batches,
+  onChange,
+}: {
+  batches: number[][];
+  onChange: (batches: number[][]) => void;
+}) {
+  // 调换：用户在某批某位选了一个新场地号，找到该场地号原来的位置，与当前位置互换
+  function handleSwap(batchIdx: number, posIdx: number, newSite: number) {
+    const next = batches.map(b => [...b]);
+    const oldSite = next[batchIdx][posIdx];
+    if (oldSite === newSite) return;
+
+    // 找到 newSite 原来在哪
+    for (let bi = 0; bi < next.length; bi++) {
+      const pi = next[bi].indexOf(newSite);
+      if (pi !== -1) {
+        // 互换
+        next[bi][pi] = oldSite;
+        next[batchIdx][posIdx] = newSite;
+        onChange(next);
+        return;
+      }
+    }
+  }
+
+  const batchLabels = ['第1批', '第2批', '第3批'];
+
+  return (
+    <div className="space-y-2.5">
+      {batches.map((batch, batchIdx) => (
+        <div key={batchIdx} className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 w-10 shrink-0 font-medium">{batchLabels[batchIdx]}</span>
+          <div className="flex gap-1.5 flex-1">
+            {batch.map((site, posIdx) => (
+              <select
+                key={`${batchIdx}-${posIdx}`}
+                value={site}
+                onChange={e => handleSwap(batchIdx, posIdx, Number(e.target.value))}
+                className="flex-1 rounded-md border border-gray-300 px-1.5 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(s => (
+                  <option key={s} value={s}>{s}号</option>
+                ))}
+              </select>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── main component ──────────────────────────────────────────────────────────
 
 export default function ReservePage() {
@@ -143,6 +198,22 @@ export default function ReservePage() {
   const [slots, setSlots] = useState<TimeSlot[]>([
     { start_time: '16:00', end_time: '18:00' },
   ]);
+  const [siteBatches, setSiteBatches] = useState<number[][]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_SITE_BATCHES;
+    try {
+      const saved = localStorage.getItem('reserve_site_batches');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return DEFAULT_SITE_BATCHES;
+  });
+
+  // derived: whether localStorage has populated personal info / site batches
+  const personalInfoSaved = !!(openid && nickname && phone);
+  const siteBatchesSaved = typeof window !== 'undefined' && !!localStorage.getItem('reserve_site_batches');
+
+  // Avoid hydration mismatch: SSR always renders open=true, client collapses after mount
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // task state
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -245,6 +316,18 @@ export default function ReservePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+
+    // 校验场地分批：每批必须恰好 4 个，不重复
+    const allSites = siteBatches.flat();
+    if (siteBatches.some(b => b.length !== 4)) {
+      setError('每批必须恰好 4 个场地');
+      return;
+    }
+    if (new Set(allSites).size !== allSites.length) {
+      setError('场地不能重复出现在多个批次中');
+      return;
+    }
+
     setSubmitting(true);
     setTask(null);
     setTaskId(null);
@@ -254,7 +337,7 @@ export default function ReservePage() {
       const res = await fetch('/api/reserve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, date: date.replace(/^(\d+)-0?(\d+)-0?(\d+)$/, '$1-$2-$3'), openid, nickname, phone, preferred_time_slots: slots }),
+        body: JSON.stringify({ token, date: date.replace(/^(\d+)-0?(\d+)-0?(\d+)$/, '$1-$2-$3'), openid, nickname, phone, preferred_time_slots: slots, site_batches: siteBatches }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? '提交失败'); return; }
@@ -305,10 +388,11 @@ export default function ReservePage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <fieldset
                     disabled={!!isActive || !!isDone}
-                    className={`space-y-4 border-0 p-0 m-0 transition-opacity disabled:cursor-not-allowed [&:disabled_*]:cursor-not-allowed ${isActive || isDone ? 'opacity-50' : ''}`}
+                    className={`divide-y divide-gray-100 border-0 p-0 m-0 transition-opacity disabled:cursor-not-allowed [&:disabled_*]:cursor-not-allowed ${isActive || isDone ? 'opacity-50' : ''}`}
                   >
 
-                    <div>
+                    {/* ── Token ─── */}
+                    <div className="pb-5">
                       <label className="block text-sm font-medium text-gray-600 mb-1">
                         <b>Token</b>
                         {tokenExpInfo && (
@@ -327,7 +411,8 @@ export default function ReservePage() {
                       />
                     </div>
 
-                    <div>
+                    {/* ── 预约日期 ─── */}
+                    <div className="py-5">
                       <label className="block text-sm font-medium text-gray-600 mb-1">预约日期</label>
                       <input
                         type="date"
@@ -338,41 +423,8 @@ export default function ReservePage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">学号</label>
-                        <input
-                          value={openid}
-                          onChange={e => { setOpenid(e.target.value); localStorage.setItem('reserve_openid', e.target.value); }}
-                          placeholder="24010133"
-                          required
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">姓名</label>
-                        <input
-                          value={nickname}
-                          onChange={e => { setNickname(e.target.value); localStorage.setItem('reserve_nickname', e.target.value); }}
-                          placeholder="石宇奇"
-                          required
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">手机号</label>
-                      <input
-                        value={phone}
-                        onChange={e => { setPhone(e.target.value); localStorage.setItem('reserve_phone', e.target.value); }}
-                        placeholder="138xxxxxxxx"
-                        required
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
+                    {/* ── 时间段优先级 ─── */}
+                    <div className="py-5">
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-medium text-gray-600">时间段优先级</label>
                         <button
@@ -399,13 +451,85 @@ export default function ReservePage() {
                       <p className="text-xs text-gray-400 mt-1">按顺序尝试，一般第一个就会成功</p>
                     </div>
 
+                    {/* ── 个人信息（可折叠）─── */}
+                    <div className="py-5">
+                      <details open={!mounted || !personalInfoSaved} className="group [&>summary]:list-none [&>summary::-webkit-details-marker]:hidden">
+                        <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-600 select-none">
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-gray-400 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                            个人信息
+                          </span>
+                          {mounted && personalInfoSaved && (
+                            <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">已保存</span>
+                          )}
+                        </summary>
+                        <div className="mt-3 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">学号</label>
+                              <input
+                                value={openid}
+                                onChange={e => { setOpenid(e.target.value); localStorage.setItem('reserve_openid', e.target.value); }}
+                                placeholder="24010133"
+                                required
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">姓名</label>
+                              <input
+                                value={nickname}
+                                onChange={e => { setNickname(e.target.value); localStorage.setItem('reserve_nickname', e.target.value); }}
+                                placeholder="石宇奇"
+                                required
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">手机号</label>
+                            <input
+                              value={phone}
+                              onChange={e => { setPhone(e.target.value); localStorage.setItem('reserve_phone', e.target.value); }}
+                              placeholder="138xxxxxxxx"
+                              required
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+
+
+
+                    {/* ── 场地优先级（可折叠）─── */}
+                    <div className="pt-5">
+                      <details open={!mounted || !siteBatchesSaved} className="group [&>summary]:list-none [&>summary::-webkit-details-marker]:hidden">
+                        <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-600 select-none">
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-gray-400 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                            场地优先级
+                          </span>
+                          {mounted && siteBatchesSaved && (
+                            <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">已保存</span>
+                          )}
+                        </summary>
+                        <div className="mt-3">
+                          <SiteBatchEditor
+                            batches={siteBatches}
+                            onChange={next => { setSiteBatches(next); localStorage.setItem('reserve_site_batches', JSON.stringify(next)); }}
+                          />
+                        </div>
+                      </details>
+                    </div>
+
                   </fieldset>
 
                   {error && (
                     <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
                   )}
 
-                  <div className="flex gap-3 pt-1">
+                  <div className="flex gap-3 pt-1 mt-8">
                     {isDone ? (
                       <button
                         type="button"

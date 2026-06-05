@@ -453,9 +453,13 @@ def main():
         import mitmproxy as _mitm
         version = getattr(_mitm, "__version__", "unknown")
         print_ok(f"mitmproxy 已就绪：{version}")
-    except ImportError:
-        print_err("未找到 mitmproxy，请先安装：")
-        print("    pip install mitmproxy")
+    except ImportError as e:
+        if getattr(sys, "_MEIPASS", None):
+            print_err(f"内置依赖加载失败（打包问题）：{e}")
+            print_err("请联系开发者重新构建此工具")
+        else:
+            print_err("未找到 mitmproxy，请先安装：")
+            print("    pip install mitmproxy")
         _pause_if_needed()
         sys.exit(1)
 
