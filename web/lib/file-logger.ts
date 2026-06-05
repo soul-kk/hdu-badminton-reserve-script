@@ -25,6 +25,8 @@ function ensureLogsDir() {
   fs.mkdirSync(LOGS_DIR, { recursive: true });
 }
 
+const SEPARATOR = '━'.repeat(80);
+
 // 写任务 header（任务开始时调用一次）
 export function fileLogHeader(
   taskId: string,
@@ -34,9 +36,10 @@ export function fileLogHeader(
   try {
     ensureLogsDir();
     const header =
-      `\n# taskId: ${taskId}  nickname: ${meta.nickname}  date: ${meta.date}  slots: ${meta.slots}\n` +
-      `# createdAt: ${createdAt.toISOString()}\n` +
-      `---\n`;
+      `\n\n${SEPARATOR}\n` +
+      `  TASK: ${meta.nickname}  |  ${meta.date}  |  ${meta.slots}\n` +
+      `  ID: ${taskId}  |  创建时间: ${createdAt.toISOString()}\n` +
+      `${SEPARATOR}\n\n`;
     fs.appendFileSync(logFilePath(), header, 'utf8');
   } catch {
     // 日志写入失败不应影响主流程
@@ -67,7 +70,10 @@ export function fileLogFooter(taskId: string, status: string) {
   try {
     ensureLogsDir();
     const ts = new Date().toISOString();
-    const footer = `[${ts}] [end    ] [${taskId.slice(0, 8)}] 任务结束，状态: ${status}\n===\n`;
+    const statusTag = status === 'success' ? '✅ SUCCESS' : status === 'failed' ? '❌ FAILED' : '⚪ ' + status.toUpperCase();
+    const footer =
+      `\n[${ts}] 任务结束: ${statusTag}\n` +
+      `${'━'.repeat(80)}\n\n\n`;
     fs.appendFileSync(logFilePath(), footer, 'utf8');
   } catch {
     // 日志写入失败不应影响主流程
