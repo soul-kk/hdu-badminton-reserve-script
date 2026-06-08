@@ -1,0 +1,31 @@
+{
+  "token": "在此粘贴你的 Token",
+  "date": "2026-06-10",
+  "openid": "你的 学号",
+  "nickname": "你的姓名",
+  "phone": "你的手机号",
+  "preferred_time_slots": [
+    {
+      "start_time": "19:00",
+      "end_time": "21:00"
+    },
+    {
+      "start_time": "17:00",
+      "end_time": "19:00"
+    }
+  ],
+  "sites": [
+    6,
+    5,
+    2,
+    3,
+    4,
+    1,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ]
+}
