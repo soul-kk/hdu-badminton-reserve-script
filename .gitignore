@@ -3,3 +3,4 @@ reserve-netSessions
 node_modules
 .DS_Store
 logs/
+reserve_script/config.json
