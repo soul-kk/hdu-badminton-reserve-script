@@ -169,14 +169,14 @@ function TokenGuide() {
       <div className="px-5 py-4 text-sm text-gray-700 space-y-2.5">
         {activeDevice === 'windows' && (
           <ol className="space-y-2">
-            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">1</span><span><a href="/downloads/get_token_win.zip" className="text-blue-600 underline underline-offset-2">点击下载抓token工具</a>，然后解压</span></li>
+            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">1</span><span><a href="/downloads/get_token_win.zip" className="text-blue-600 underline underline-offset-2">点击下载windows抓token工具</a>，然后解压</span></li>
             <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">2</span><span>首次运行时，需要<strong>右键 → 以管理员身份运行</strong></span></li>
             <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">3</span><span>根据提示拿到 token</span></li>
           </ol>
         )}
         {activeDevice === 'macos' && (
           <ol className="space-y-2">
-            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">1</span><span><a href="/downloads/get_token_mac.zip" className="text-blue-600 underline underline-offset-2">点击下载抓token工具</a>，然后解压</span></li>
+            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">1</span><span><a href="/downloads/get_token_mac.zip" className="text-blue-600 underline underline-offset-2">点击下载macOS抓token工具</a>，然后解压</span></li>
             <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">2</span><span>直接双击打开</span></li>
             <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">3</span><span>根据提示拿到 token</span></li>
           </ol>
