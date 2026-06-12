@@ -5,6 +5,7 @@ get_token.py — 跨平台一键获取场地预约系统 Token
 使用方式: python get_token.py
 """
 
+import atexit
 import os
 import sys
 import time
@@ -429,12 +430,42 @@ def cleanup(signum=None, frame=None):
     sys.exit(1)
 
 
+# atexit 兜底：覆盖 sys.exit() / 未捕获异常等所有正常退出路径
+atexit.register(restore_proxy)
+atexit.register(stop_mitmdump)
+
+# Windows：点击窗口 X / 注销 / 关机时发送 CTRL_CLOSE_EVENT，
+# 不经过 Python signal handler，必须通过 SetConsoleCtrlHandler 注册。
+# 必须保持模块级引用，防止被 GC 回收导致回调失效。
+_win_ctrl_handler = None
+
+if IS_WINDOWS:
+    import ctypes
+    import ctypes.wintypes
+
+    _CTRL_CLOSE_EVENT    = 2
+    _CTRL_LOGOFF_EVENT   = 5
+    _CTRL_SHUTDOWN_EVENT = 6
+
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.DWORD)
+    def _win_ctrl_handler(ctrl_type):
+        if ctrl_type in (_CTRL_CLOSE_EVENT, _CTRL_LOGOFF_EVENT, _CTRL_SHUTDOWN_EVENT):
+            stop_mitmdump()
+            restore_proxy()
+        return False  # 返回 False 让系统继续执行默认关闭流程
+
+    ctypes.windll.kernel32.SetConsoleCtrlHandler(_win_ctrl_handler, True)
+
+
 # ============================================================
 #  主流程
 # ============================================================
 def main():
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
+    # macOS：关闭终端窗口发送 SIGHUP，需单独注册（Windows 无此信号）
+    if IS_MACOS:
+        signal.signal(signal.SIGHUP, cleanup)
 
     # PyInstaller --onefile 启动时需要解压依赖，可能有几秒延迟，提前告知用户
     if getattr(sys, "_MEIPASS", None):
