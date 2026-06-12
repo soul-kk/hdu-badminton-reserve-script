@@ -17,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" className="h-full">
       <body className="min-h-full bg-gray-50 text-gray-900 antialiased flex flex-col">
-        <main className="flex-1">{children}</main>
+        {children}
         <footer className="py-3 text-center text-xs text-gray-400">
           <a
             href="https://beian.miit.gov.cn"
