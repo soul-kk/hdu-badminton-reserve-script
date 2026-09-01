@@ -2,6 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { chmod, mkdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -12,6 +13,9 @@ const repoRoot = process.env.BADMINTON_REPO_ROOT
   ? path.resolve(process.env.BADMINTON_REPO_ROOT)
   : path.resolve(scriptDir, '../../../..');
 const capturePath = path.join(repoRoot, '.badminton-reserve', 'token-capture.json');
+const projectPython = process.platform === 'win32'
+  ? path.join(repoRoot, '.badminton-reserve', 'venv', 'Scripts', 'python.exe')
+  : path.join(repoRoot, '.badminton-reserve', 'venv', 'bin', 'python');
 
 function fail(message) {
   console.error(JSON.stringify({ ok: false, error: message }));
@@ -55,7 +59,7 @@ if (!args.test && (startedAt.getHours() < 15)) {
   fail('正式预约禁止在 15:00 前启动 Token 抓取；请等待到今天 15:00 后重试。仅用户明确要求测试时才可使用 --test。');
 }
 
-const python = process.env.PYTHON ?? 'python3';
+const python = process.env.PYTHON ?? (existsSync(projectPython) ? projectPython : 'python3');
 const child = spawn(python, ['token_script/get_token.py'], {
   cwd: repoRoot,
   stdio: 'inherit',

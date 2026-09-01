@@ -22,9 +22,26 @@ description: Automate local HDU badminton-court reservations in this repository,
 - 创建宿主定时唤醒/自动化时，优先显式选择 `Asia/Shanghai`。如果工具只能接受 UTC，则必须换算：北京时间当天 15:00 = 当天 07:00 UTC，20:00 = 当天 12:00 UTC。
 - 创建后必须复核宿主界面显示的是“北京时间当天 15:00”；若显示为 23:00 或其他时刻，立即更正，不能继续执行。
 
+## 首次环境准备
+
+在首次配置个人资料前，先检查运行环境：
+
+```bash
+node .agents/skills/reserve-hdu-badminton/scripts/environment.mjs status
+```
+
+- 必须具备 Node.js 18+、Python 3 和 `mitmproxy`。若 `node` 命令本身不存在，先用宿主 shell 检测系统与可用包管理器；macOS 优先 Homebrew，Windows 优先 winget，Linux 优先系统包管理器。一次性向用户请求安装 Node.js LTS 与 Python 3 以及联网下载依赖的授权，再执行安装并复检；不要让用户手动复制命令。
+- Node.js 和 Python 已具备而 `mitmproxy` 缺失时，运行以下命令。它会在项目 Git 忽略目录 `.badminton-reserve/venv` 创建私有虚拟环境并安装依赖，不改动全局 Python 包：
+
+```bash
+node .agents/skills/reserve-hdu-badminton/scripts/environment.mjs install-mitmproxy
+```
+
+- 检查失败时，报告具体缺失项与安装失败原因；网络、管理员密码、操作系统安全确认或钉钉/证书授权无法绕过。修复后必须重复运行 `status`，仅在输出 `ok: true` 后继续。
+
 ## 每次任务先检查
 
-在仓库根目录运行：
+确认环境检查输出 `ok: true` 后，在仓库根目录运行：
 
 ```bash
 node .agents/skills/reserve-hdu-badminton/scripts/profile.mjs status
