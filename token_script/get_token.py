@@ -6,6 +6,8 @@ get_token.py — 跨平台一键获取场地预约系统 Token
 """
 
 import atexit
+import argparse
+import json
 import os
 import sys
 import time
@@ -14,6 +16,7 @@ import tempfile
 import subprocess
 import multiprocessing
 import platform
+from datetime import datetime, timedelta, timezone
 
 # ============================================================
 #  配置
@@ -33,6 +36,13 @@ TIMEOUT = 240  # 4 分钟
 
 IS_WINDOWS = platform.system() == "Windows"
 IS_MACOS = platform.system() == "Darwin"
+BEIJING_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
+
+PROJECT_ROOT = os.path.abspath(os.environ.get("BADMINTON_REPO_ROOT") or (
+    os.getcwd() if getattr(sys, "_MEIPASS", None)
+    else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+))
+CAPTURE_RECORD = os.path.join(PROJECT_ROOT, ".badminton-reserve", "token-capture.json")
 
 # ============================================================
 #  终端颜色（Windows 10+ 支持 ANSI）
@@ -62,6 +72,40 @@ def print_warn(msg):
 
 def print_err(msg):
     print(f"{RED}✗ {msg}{NC}")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="获取场馆速约 Token")
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="仅用于用户明确要求的流程测试，允许北京时间 15:00 前抓取",
+    )
+    return parser.parse_args()
+
+
+def enforce_capture_time(test_mode):
+    now = datetime.now(BEIJING_TZ)
+    if not test_mode and now.hour < 15:
+        print_err("正式预约禁止在北京时间 15:00 前抓取 Token")
+        print("  请等待到今天北京时间 15:00 后重试；仅流程测试可使用 --test。")
+        sys.exit(1)
+
+
+def write_capture_record(test_mode):
+    os.makedirs(os.path.dirname(CAPTURE_RECORD), mode=0o700, exist_ok=True)
+    record = {
+        "version": 1,
+        "capturedAt": datetime.now(BEIJING_TZ).isoformat(),
+        "mode": "test" if test_mode else "formal",
+    }
+    temp_path = f"{CAPTURE_RECORD}.{os.getpid()}.tmp"
+    with open(temp_path, "w", encoding="utf-8") as file:
+        json.dump(record, file, ensure_ascii=False, indent=2)
+        file.write("\n")
+    os.chmod(temp_path, 0o600)
+    os.replace(temp_path, CAPTURE_RECORD)
+    os.chmod(CAPTURE_RECORD, 0o600)
 
 
 # ============================================================
@@ -356,7 +400,7 @@ def wait_for_token():
 # ============================================================
 #  展示 Token
 # ============================================================
-def save_token():
+def save_token(test_mode=False):
     with open(TOKEN_FILE, "r") as f:
         token = f.read().strip()
 
@@ -392,6 +436,7 @@ def save_token():
 
     if copied:
         print(f"  {GREEN}✓ 【已自动复制到剪切板】{NC}")
+    write_capture_record(test_mode)
     print()
 
     # 提示音
@@ -460,7 +505,8 @@ if IS_WINDOWS:
 # ============================================================
 #  主流程
 # ============================================================
-def main():
+def main(test_mode=False):
+    enforce_capture_time(test_mode)
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
     # macOS：关闭终端窗口发送 SIGHUP，需单独注册（Windows 无此信号）
@@ -503,7 +549,7 @@ def main():
         if wait_for_token():
             stop_mitmdump()
             restore_proxy()
-            save_token()
+            save_token(test_mode)
             _pause_if_needed()
         else:
             stop_mitmdump()
@@ -524,4 +570,5 @@ def main():
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()  # PyInstaller + Windows multiprocessing 必须
-    main()
+    args = parse_args()
+    main(args.test)

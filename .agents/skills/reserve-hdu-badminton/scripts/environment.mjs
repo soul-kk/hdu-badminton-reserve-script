@@ -43,20 +43,29 @@ function pythonVersion(python) {
   return (result.stdout || result.stderr).trim() || null;
 }
 
-function mitmproxyVersion(python) {
-  if (!python) return null;
-  const result = run(python, ['-c', 'import mitmproxy; print(mitmproxy.__version__)']);
-  return result.status === 0 ? result.stdout.trim() : null;
+function mitmproxyInfo(python) {
+  if (!python) return { version: null, installed: false };
+  const importResult = run(python, ['-c', 'import mitmproxy; import mitmproxy.tools.main']);
+  if (importResult.status !== 0) return { version: null, installed: false };
+  const versionResult = run(python, [
+    '-c',
+    'from importlib.metadata import version; print(version("mitmproxy"))',
+  ]);
+  return {
+    version: versionResult.status === 0 ? versionResult.stdout.trim() : null,
+    installed: true,
+  };
 }
 
 function status() {
   const python = findPython();
   const nodeMajor = Number(process.versions.node.split('.')[0]);
+  const mitmproxy = mitmproxyInfo(python);
   const result = {
-    ok: nodeMajor >= 18 && Boolean(python) && Boolean(mitmproxyVersion(python)),
+    ok: nodeMajor >= 18 && Boolean(python) && mitmproxy.installed,
     node: { version: process.version, supported: nodeMajor >= 18 },
     python: python ? { command: python, version: pythonVersion(python) } : null,
-    mitmproxy: python ? { version: mitmproxyVersion(python), installed: Boolean(mitmproxyVersion(python)) } : { version: null, installed: false },
+    mitmproxy,
     projectPython: existsSync(venvPython) ? venvPython : null,
   };
   console.log(JSON.stringify(result, null, 2));

@@ -76,6 +76,16 @@ function readClipboard() {
   fail('当前系统不支持自动读取剪贴板，请改用 --token-stdin');
 }
 
+function beijingParts(date = new Date()) {
+  const shifted = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth(),
+    day: shifted.getUTCDate(),
+    hour: shifted.getUTCHours(),
+  };
+}
+
 function validateToken(token, allowExpireBeforeOpen) {
   if (!/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) fail('未检测到有效的 JWT Token');
   let payload;
@@ -89,8 +99,9 @@ function validateToken(token, allowExpireBeforeOpen) {
 
   if (!allowExpireBeforeOpen) {
     const now = new Date();
-    const openGuard = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 5, 0, 0).getTime();
-    if (now.getHours() < 20 && expiresAt < openGuard) fail('Token 无法覆盖今天 20:05，请在 15:00 后重新获取');
+    const today = beijingParts(now);
+    const openGuard = Date.UTC(today.year, today.month, today.day, 12, 5, 0, 0);
+    if (today.hour < 20 && expiresAt < openGuard) fail('Token 无法覆盖今天北京时间 20:05，请在 15:00 后重新获取');
   }
   return expiresAt;
 }
@@ -101,19 +112,21 @@ async function validateCapture(allowEarlyToken) {
   try {
     receipt = JSON.parse(await readFile(capturePath, 'utf8'));
   } catch (error) {
-    if (error.code === 'ENOENT') fail('未找到 Token 抓取记录。正式预约必须通过 acquire-token.mjs 在 15:00 后获取 Token');
+    if (error.code === 'ENOENT') fail('未找到 Token 抓取记录。正式预约必须通过 get_token.py 在北京时间 15:00 后获取 Token');
     fail(`Token 抓取记录读取失败: ${error.message}`);
   }
   const capturedAt = new Date(receipt?.capturedAt);
   if (receipt?.version !== 1 || receipt?.mode !== 'formal' || Number.isNaN(capturedAt.getTime())) {
-    fail('Token 抓取记录无效。请通过 acquire-token.mjs 重新获取 Token');
+    fail('Token 抓取记录无效。请通过 get_token.py 重新获取 Token');
   }
   const now = new Date();
-  const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0, 0);
-  if (capturedAt.getFullYear() !== now.getFullYear() || capturedAt.getMonth() !== now.getMonth() || capturedAt.getDate() !== now.getDate()) {
+  const today = beijingParts(now);
+  const capturedDay = beijingParts(capturedAt);
+  const cutoff = Date.UTC(today.year, today.month, today.day, 7, 0, 0, 0);
+  if (capturedDay.year !== today.year || capturedDay.month !== today.month || capturedDay.day !== today.day) {
     fail('Token 不是今天抓取的。请在今天 15:00 后重新获取 Token');
   }
-  if (capturedAt < cutoff) fail('Token 抓取时间早于今天 15:00。请重新获取 Token');
+  if (capturedAt.getTime() < cutoff) fail('Token 抓取时间早于今天北京时间 15:00。请重新获取 Token');
   if (capturedAt > now) fail('Token 抓取记录时间异常。请重新获取 Token');
   return capturedAt;
 }
