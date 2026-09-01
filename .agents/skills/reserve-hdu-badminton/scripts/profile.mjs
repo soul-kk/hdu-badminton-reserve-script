@@ -29,7 +29,7 @@ async function readJson(filePath) {
 
 function validateProfile(input) {
   if (input.venuePinned !== true) fail('请先确认场馆速约已固定在钉钉工作台“我的”第一行');
-  if (input.computerControlReady !== true) fail('请先确认已允许 Agent 操控电脑与钉钉');
+  if (input.computerControlReady !== true) fail('请先确认 Agent 已设置为“完全访问（Full access）”并可操控电脑与钉钉');
 
   const openid = String(input.openid ?? '').trim();
   const nickname = String(input.nickname ?? '').trim();

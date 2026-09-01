@@ -10,13 +10,15 @@ description: Automate local HDU 综合馆 badminton reservations from first-run 
 ## 规则
 
 - 从本文件向上四级定位仓库根目录；所有命令都在根目录运行。
+- 把本任务运行在用户本机的系统级环境中，禁止使用容器、云端或受限沙箱执行 Token、证书、代理、钉钉和预约命令。每次任务先核对宿主权限为最高的“完全访问（Full access）”；若是只读、工作区写入或其他受限模式，立即停止并要求用户切换权限后重新运行。
+- “完全访问”不等于默认使用 root；仅在系统确实要求安装证书时使用管理员授权。受限环境中的证书校验结果不可信，不得据此重装证书或让用户重复操作。
 - 所有日期和 `15:00`、`20:00`、`20:05` 一律为北京时间 `Asia/Shanghai`，相对日期也按北京时间换算。
 - 自动化优先显式使用 `Asia/Shanghai`；若只接受 UTC，15:00 对应 07:00 UTC，20:00 对应 12:00 UTC。创建后复核界面必须显示北京时间 15:00，错误时立即修正。
 - Token、身份、`.badminton-reserve/` 和 `reserve_script/config.json` 仅存本机，不得输出或提交。
 
 ## 1. 检查环境与档案
 
-运行 `node .agents/skills/reserve-hdu-badminton/scripts/environment.mjs status`。必须有 Node.js 18+、Python 3 和 `mitmproxy`。
+先确认当前任务是本机系统级“完全访问”环境，再运行 `node .agents/skills/reserve-hdu-badminton/scripts/environment.mjs status`。必须有 Node.js 18+、Python 3 和 `mitmproxy`。
 
 - 没有 Node/Python：检测系统包管理器，集中请求一次安装与联网授权，自动安装后复检。
 - 只有 `mitmproxy` 缺失：运行 `node .agents/skills/reserve-hdu-badminton/scripts/environment.mjs install-mitmproxy`，使用项目私有 `.badminton-reserve/venv`。
@@ -25,7 +27,7 @@ description: Automate local HDU 综合馆 badminton reservations from first-run 
 运行 `node .agents/skills/reserve-hdu-badminton/scripts/profile.mjs status`。若未配置，一次性询问并确认：
 
 1. 已把钉钉「场馆速约」放在“工作台 → 我的”第一行。
-2. 已允许 Agent 操控电脑与钉钉。
+2. 已把 Agent 权限设置为最高的“完全访问（Full access）”，并允许其操控电脑与钉钉。
 3. 学号、姓名、手机号。
 
 将回答作为 JSON 从标准输入传给 `profile.mjs init`；同一项目后续对话复用档案，不再询问。
@@ -48,6 +50,8 @@ description: Automate local HDU 综合馆 badminton reservations from first-run 
 测试模式才可加 `--test`。`get_token.py` 会拒绝北京时间 15:00 前的正式抓取，并在成功后记录不含 Token 的抓取时间。
 
 脚本监听后，使用桌面控制操作钉钉；路径与恢复见 [dingtalk-control.md](references/dingtalk-control.md)。等待脚本成功退出并确认代理和 18888 端口已恢复。宿主要求代理、证书或令牌确认时集中请求一次，不得绕过。
+
+macOS 若报告证书未信任，必须先在同一个系统级环境执行只读的 `security verify-cert` 复核。若受限环境无法读取钥匙串，先切换到“完全访问”再复核；只有系统级复核仍失败时才安装证书。
 
 ## 4. 生成配置并运行
 
