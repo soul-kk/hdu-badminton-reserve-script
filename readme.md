@@ -19,7 +19,7 @@ HDU 综合馆羽毛球场地自动抢场。每天 20:00 开放预约，脚本卡
 
 ### 步骤
 
-1. 编辑 `reserve_script/config.json`，填写你的预约信息
+1. 复制 `reserve_script/config.example.json` 为 `reserve_script/config.json`，填写你的预约信息
 2. 运行脚本：
 
 ```bash
@@ -27,6 +27,16 @@ HDU 综合馆羽毛球场地自动抢场。每天 20:00 开放预约，脚本卡
 ```
 
 3. 脚本会自动同步服务器时间，等待到 20:00 后开始抢场。这期间请保持脚本处于运行状态！
+
+## 使用本机 AI Agent 自动预约
+
+仓库包含 `.agents/skills/reserve-hdu-badminton`。使用支持仓库 Skill、本机终端和桌面控制的 Agent 打开仓库根目录后，可以直接说：
+
+> 帮我预约后天 10:00-11:40 的羽毛球场。
+
+首次使用时，Agent 会集中确认钉钉准备情况，并询问学号、姓名、手机号。这些信息只保存在当前项目被 Git 忽略的 `.badminton-reserve/profile.json` 中；同一项目的新对话可以继续复用。后续只需提供预约日期和时间。
+
+Token、个人资料和 `reserve_script/config.json` 都不应提交到 Git。系统代理、证书或桌面控制仍可能触发 Agent 宿主要求的安全确认。
 
 ### config.json 字段说明
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "杭电羽毛球自动预约"
+  short_description: "自动获取场馆速约 Token、准备配置并守候完成羽毛球预约任务"
+  default_prompt: "Use $reserve-hdu-badminton to complete my HDU badminton reservation from Token capture through the final result."
