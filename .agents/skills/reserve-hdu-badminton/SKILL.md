@@ -15,6 +15,13 @@ description: Automate local HDU badminton-court reservations in this repository,
 - Token 工具：`token_script/get_token.py`。
 - 预约程序：`reserve_script/main.js`。
 
+## 时间与时区
+
+- 本 Skill 中所有“今天、明天、后天”、日期以及 `15:00`、`20:00`、`20:05`，**一律指北京时间（Asia/Shanghai，UTC+08:00）**，不得按 UTC 或宿主默认时区理解。
+- 先按 `Asia/Shanghai` 计算相对日期，再写入 `YYYY-MM-DD`；不得因为 UTC 日期已切换而预约错日期。
+- 创建宿主定时唤醒/自动化时，优先显式选择 `Asia/Shanghai`。如果工具只能接受 UTC，则必须换算：北京时间当天 15:00 = 当天 07:00 UTC，20:00 = 当天 12:00 UTC。
+- 创建后必须复核宿主界面显示的是“北京时间当天 15:00”；若显示为 23:00 或其他时刻，立即更正，不能继续执行。
+
 ## 每次任务先检查
 
 在仓库根目录运行：
@@ -49,15 +56,15 @@ node .agents/skills/reserve-hdu-badminton/scripts/profile.mjs status
 
 ## 解析预约请求
 
-- 把“今天、明天、后天”等相对日期按本机时区转换成明确的 `YYYY-MM-DD`，并向用户简短复述一次。
+- 把“今天、明天、后天”等相对日期按北京时间（`Asia/Shanghai`）转换成明确的 `YYYY-MM-DD`，并向用户简短复述一次。
 - 把时间整理成一个或多个按优先级排列的 `HH:MM-HH:MM`。
 - 只接受预约程序支持的时间节点；让配置脚本完成最终校验。
 - 沿用预约程序现有行为：目标时段部分可用时也会预约可用部分。只有用户明确要求“必须完整时段”时才暂停并说明当前程序需要先改造。
 
 ## 选择执行时机
 
-- 正式预约：必须在开放日当天 15:00 后获取 Token。不要直接运行 `get_token.py`，必须使用下方的受控入口；它会在 15:00 前拒绝启动，并在成功后保存不含 Token 的抓取时间记录。
-- 用户提前发出正式请求：如果宿主支持当前任务定时唤醒，安排在当天 15:00 继续；否则保持任务运行并等待到 15:00。不要提前获取 Token。
+- 正式预约：必须在开放日当天北京时间 15:00 后获取 Token。不要直接运行 `get_token.py`，必须使用下方的受控入口；它会在 15:00 前拒绝启动，并在成功后保存不含 Token 的抓取时间记录。
+- 用户提前发出正式请求：如果宿主支持当前任务定时唤醒，安排在当天北京时间 15:00 继续；否则保持任务运行并等待到北京时间 15:00。创建定时唤醒后按上节规则复核界面显示时间。不要提前获取 Token。
 - 流程测试：只有用户明确说“测试/模拟并在倒计时后停止”时，才允许提前获取 Token，并在倒计时出现后立即停止任务。
 
 ## 获取 Token
@@ -84,7 +91,7 @@ node .agents/skills/reserve-hdu-badminton/scripts/prepare-config.mjs \
   --token-clipboard
 ```
 
-若是用户明确要求的提前流程测试，加上 `--allow-expire-before-open`。正式预约会同时验证 Token 抓取记录为今天 15:00 后、且 Token 至少覆盖今天 20:05。脚本会合并项目档案、校验 Token 和时段，并以仅本人可读写权限生成 `reserve_script/config.json`。
+若是用户明确要求的提前流程测试，加上 `--allow-expire-before-open`。正式预约会同时验证 Token 抓取记录为今天北京时间 15:00 后、且 Token 至少覆盖今天北京时间 20:05。脚本会合并项目档案、校验 Token 和时段，并以仅本人可读写权限生成 `reserve_script/config.json`。
 
 ## 启动并托管预约
 
@@ -100,7 +107,7 @@ node .agents/skills/reserve-hdu-badminton/scripts/task.mjs start
 node .agents/skills/reserve-hdu-badminton/scripts/task.mjs status
 ```
 
-只有日志同时出现“服务器时间同步完成”和“距离 20:00:00”时，才向用户说明任务已成功创建。不要在此时结束自己的监控责任。
+只有日志同时出现“服务器时间同步完成”和“距离 20:00:00”时，才向用户说明任务已成功创建；该 `20:00` 为北京时间。不要在此时结束自己的监控责任。
 
 后台托管器会在 macOS 上使用 `caffeinate` 防止睡眠，并把状态与日志写入 `.badminton-reserve/`。用户可以去做别的事情；持续监控直到状态变成 `success`、`failed`、`cancelled` 或 `interrupted`，再报告最终结果。
 
